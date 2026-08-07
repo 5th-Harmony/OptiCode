@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - SANDBOX_DOCKER_IMAGE=bigo-sandbox:latest
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  sandbox-image-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox
+    image: bigo-sandbox:latest
+    command: echo "Sandbox image built successfully"
