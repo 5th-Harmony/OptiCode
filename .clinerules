@@ -1,0 +1,6 @@
+# OptiCode Agent Rules (.clinerules)
+
+- Maintain clean separation between Frontend (React/Vite), Backend Gateway (FastAPI), and Database Layer (PostgreSQL / Prisma / SQLite).
+- Ensure SHA-256 cache verification runs before full AST sandbox analysis.
+- Validate that all API routes handle database connection fallbacks gracefully.
+- Enforce CI/CD pipeline green status on all commits.

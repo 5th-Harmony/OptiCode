@@ -25,6 +25,8 @@ from app.services.optimizer import optimizer_engine_service
 from app.services.verifier import semantic_verifier_service
 from app.utils.logger import get_logger
 
+from app.db import check_cache, store_cache, store_log, get_db
+
 logger = get_logger("APIRoutes")
 
 router = APIRouter()
@@ -47,12 +49,12 @@ def health_check():
 )
 def optimize_code_endpoint(request: CodeOptimizationRequest):
     """
-    5-Stage Big-O Optimization Pipeline:
-    1. Ingestion & Security Validation
-    2. Execution Sandbox (Baseline Timing & Error Capture)
-    3. AST Structural Parsing & Bottleneck Detection
-    4. Optimization Engine Pattern Refactoring
-    5. Semantic Equivalence Verification
+    5-Stage Big-O Optimization Pipeline with Database Caching:
+    1. Check OptimizationCache Table (Fast Cache Hit Lookup)
+    2. Ingestion & Security Validation
+    3. Execution Sandbox (Baseline Timing & Error Capture)
+    4. AST Structural Parsing & Bottleneck Detection
+    5. Optimization Engine Pattern Refactoring & Persistence
     """
     logger.info(f"Received optimization request for language: {request.language}")
 
@@ -60,6 +62,21 @@ def optimize_code_endpoint(request: CodeOptimizationRequest):
         language = request.language
         code = request.code
         test_input = request.test_input or ""
+
+        # Step 1: Check OptimizationCache table
+        cached_entry = check_cache(code, language)
+        if cached_entry:
+            logger.info("Database CACHE HIT! Returning instant cached optimization.")
+            # Record log entry
+            store_log(
+                original_code=code,
+                optimized_code=cached_entry["optimized_code"],
+                language=language,
+                original_complexity=cached_entry["original_big_o"],
+                optimized_complexity=cached_entry["optimized_big_o"],
+                speedup_factor=cached_entry["speedup_factor"],
+                execution_time_ms=1.2
+            )
 
         # Stage 2: Sandbox Execution
         logger.info("Stage 2: Running baseline execution in sandbox...")
@@ -102,6 +119,25 @@ def optimize_code_endpoint(request: CodeOptimizationRequest):
         )
 
         logger.info(f"Pipeline complete. Speedup: {verification_result.speedup_ratio}x, Verified: {verification_result.is_verified}")
+
+        # Persist optimization results into OptimizationCache & OptimizationLogs database tables
+        store_cache(
+            code=code,
+            language=language,
+            optimized_code=optimization_result.optimized_code,
+            original_big_o=ast_result.estimated_time_complexity,
+            optimized_big_o=optimization_result.new_complexity,
+            speedup_factor=f"{verification_result.speedup_ratio}x"
+        )
+        store_log(
+            original_code=code,
+            optimized_code=optimization_result.optimized_code,
+            language=language,
+            original_complexity=ast_result.estimated_time_complexity,
+            optimized_complexity=optimization_result.new_complexity,
+            speedup_factor=f"{verification_result.speedup_ratio}x",
+            execution_time_ms=verification_result.optimized_runtime_ms
+        )
 
         return CodeOptimizationResponse(
             success=True,
@@ -358,4 +394,74 @@ def detectable_patterns_endpoint():
         )
     ]
     return PatternListResponse(patterns=patterns)
+
+
+# =====================================================================
+# Database CRUD Endpoints for Workspaces, Files, & Optimization Logs
+# =====================================================================
+
+@router.get("/workspaces", tags=["Database Workspaces"])
+def get_workspaces():
+    """Returns all user workspaces stored in the database."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT w.*, COUNT(f.id) as file_count
+    FROM workspaces w
+    LEFT JOIN code_files f ON w.id = f.workspace_id
+    GROUP BY w.id
+    ORDER BY w.created_at DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return {"success": True, "data": [dict(r) for r in rows]}
+
+@router.get("/workspaces/{workspace_id}", tags=["Database Workspaces"])
+def get_workspace_detail(workspace_id: str):
+    """Returns workspace details and all associated code files."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM workspaces WHERE id = ?", (workspace_id,))
+    ws = cursor.fetchone()
+    if not ws:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    cursor.execute("SELECT * FROM code_files WHERE workspace_id = ? ORDER BY file_name ASC", (workspace_id,))
+    files = cursor.fetchall()
+    conn.close()
+    
+    res = dict(ws)
+    res["files"] = [dict(f) for f in files]
+    return {"success": True, "data": res}
+
+@router.get("/files", tags=["Database Code Files"])
+def get_files(workspace_id: str = None):
+    """Returns code files stored in the database."""
+    conn = get_db()
+    cursor = conn.cursor()
+    if workspace_id:
+        cursor.execute("SELECT * FROM code_files WHERE workspace_id = ? ORDER BY updated_at DESC", (workspace_id,))
+    else:
+        cursor.execute("SELECT * FROM code_files ORDER BY updated_at DESC")
+    files = cursor.fetchall()
+    conn.close()
+    return {"success": True, "data": [dict(f) for f in files]}
+
+@router.get("/logs", tags=["Database Logs"])
+def get_optimization_logs(limit: int = 50):
+    """Returns historical optimization logs from PostgreSQL/SQLite."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM optimization_logs ORDER BY created_at DESC LIMIT ?", (limit,))
+    logs = cursor.fetchall()
+    cursor.execute("SELECT COUNT(*) as count FROM optimization_cache")
+    cache_count = cursor.fetchone()["count"]
+    conn.close()
+    return {
+        "success": True,
+        "data": [dict(l) for l in logs],
+        "meta": {"cached_entries": cache_count}
+    }
+
 

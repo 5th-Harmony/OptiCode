@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import settings
 from app.api.routes import router as api_router
 from app.utils.logger import get_logger
+from app.db import init_db
 
 logger = get_logger("Main")
 
@@ -18,6 +19,12 @@ app = FastAPI(
     version=settings.VERSION,
     description="Backend API for Big-O Code Complexity Analysis, AST Parsing, Optimization Engine, and Verification Sandbox."
 )
+
+@app.on_event("startup")
+def on_startup():
+    logger.info("Initializing OPTICODE Database...")
+    init_db()
+    logger.info("Database initialized successfully.")
 
 # Enable CORS for Web Application Frontend
 app.add_middleware(
