@@ -11,7 +11,7 @@ import SettingsModal from './components/SettingsModal';
 import LegalModal from './components/LegalModal';
 
 import { INITIAL_FILES, MOCK_USER_PROFILE } from './data/defaultFiles';
-import { optimizeCode } from './utils/optimizerEngine';
+import { optimizeCode, optimizeCodeWithBackend, checkBackendHealth } from './utils/optimizerEngine';
 
 export default function App() {
   // Theme state ('dark' or 'light')
@@ -19,7 +19,21 @@ export default function App() {
     return localStorage.getItem('opticode_theme') || 'dark';
   });
 
+  // Backend status indicator
+  const [backendOnline, setBackendOnline] = useState(false);
+
+  useEffect(() => {
+    const pollHealth = async () => {
+      const status = await checkBackendHealth();
+      setBackendOnline(status.online);
+    };
+    pollHealth();
+    const timer = setInterval(pollHealth, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
   // User Authentication state
+
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('opticode_user');
     return saved ? JSON.parse(saved) : { ...MOCK_USER_PROFILE, isLoggedIn: true };
@@ -154,15 +168,14 @@ export default function App() {
   };
 
   // Trigger Code Optimization
-  const handleOptimize = () => {
+  const handleOptimize = async () => {
     if (!activeFile || isOptimizing) return;
     setIsOptimizing(true);
     setOptimizedResult(null);
 
-    setTimeout(() => {
-      const result = optimizeCode(activeFile.content, activeFile.language);
+    try {
+      const result = await optimizeCodeWithBackend(activeFile.content, activeFile.language);
       setOptimizedResult(result);
-      setIsOptimizing(false);
       setIsTerminalOpen(true); // Automatically slide up terminal to reveal complexity analysis!
 
       // Update User Stats if logged in
@@ -176,8 +189,13 @@ export default function App() {
           }
         }));
       }
-    }, 1200);
+    } catch (err) {
+      console.error('Optimization error:', err);
+    } finally {
+      setIsOptimizing(false);
+    }
   };
+
 
   // Apply Optimized Code back to Source File
   const handleApplyOptimization = () => {
@@ -199,7 +217,9 @@ export default function App() {
         viewMode={viewMode}
         setViewMode={setViewMode}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
+        backendOnline={backendOnline}
       />
+
 
       {/* Main Workspace Body */}
       <div className="main-layout">
