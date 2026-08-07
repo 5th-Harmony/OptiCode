@@ -1,1 +1,1 @@
-# GDG ProjMeter Backend
+# OptiCode Backend
