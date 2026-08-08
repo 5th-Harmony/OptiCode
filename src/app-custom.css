@@ -2017,183 +2017,35 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   DEVELOPER PLATFORM AUTHENTICATION MODAL (Linear + Vercel SaaS Aesthetic)
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.auth-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(8, 11, 16, 0.72);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  padding: 20px;
-  animation: authFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes authFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-.auth-card {
-  position: relative;
-  width: 100%;
-  max-width: 420px;
-  background: #0f141c;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* ── AUTH & LEGAL MODAL SCROLLABILITY & ASPECT RATIO ─────────────────────── */
+.auth-modal-box {
+  width: 440px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
-  padding: 36px 36px 28px;
-  box-shadow: 
-    0 24px 48px -12px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(59, 130, 246, 0.08);
-  animation: authCardScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  display: flex;
-  flex-direction: column;
-}
-
-@keyframes authCardScaleIn {
-  from { opacity: 0; transform: scale(0.96) translateY(8px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.auth-card-close {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: #94a3b8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.auth-card-close:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #f8fafc;
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-/* Header & Branding */
-.auth-brand-header {
-  text-align: center;
-  margin-bottom: 28px;
-}
-
-.auth-logo-wrapper {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
-}
-
-.auth-card-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #f8fafc;
-  margin: 0;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
-}
-
-.auth-card-subtitle {
-  font-size: 0.875rem;
-  color: #94a3b8;
-  margin-top: 8px;
-  margin-bottom: 0;
-  line-height: 1.45;
-}
-
-/* Alert Banner */
-.auth-card-alert {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  font-size: 0.8125rem;
-  margin-bottom: 20px;
-  animation: authAlertShake 0.25s ease-out;
-}
-
-@keyframes authAlertShake {
-  0%, 100% { transform: translateX(0); }
-  25%, 75% { transform: translateX(-4px); }
-  50%      { transform: translateX(4px); }
-}
-
-.auth-card-alert.alert-error {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  color: #fca5a5;
-}
-
-.auth-card-alert.alert-locked {
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  color: #fcd34d;
-}
-
-.auth-card-alert .alert-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.4;
-}
-
-.auth-card-alert .lockout-time {
-  font-family: var(--font-mono, monospace);
-  font-weight: 700;
-  font-size: 0.875rem;
-}
-
-/* Form Structure */
-.auth-form-body {
-  display: flex;
-  flex-direction: column;
-}
-
-.auth-field-group {
-  margin-bottom: 18px;
-  text-align: left;
-}
-
-.auth-field-label {
-  display: block;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #cbd5e1;
-  margin-bottom: 8px;
-}
-
-.auth-input-container {
+  padding: 28px 24px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(59, 130, 246, 0.15);
   position: relative;
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.auth-input {
-  width: 100%;
-  height: 48px;
-  padding: 0 16px;
-  border-radius: 10px;
-  background: #161c26;
+.auth-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #f8fafc;
-  font-size: 0.9375rem;
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-}
-
+  color: #94A3B8;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
 .auth-input::placeholder {
   color: #64748b;
 }
@@ -2216,12 +2068,147 @@
 }
 
 .auth-password-toggle {
+=======
+  transition: all 0.2s;
+}
+
+.auth-close-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+}
+
+.auth-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.auth-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #F8FAFC;
+  margin: 4px 0 0 0;
+}
+
+.auth-subtitle {
+  font-size: 0.8rem;
+  color: #94A3B8;
+  margin: 0;
+}
+
+.auth-security-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 20px;
+  color: #10B981;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.btn-demo-login {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  color: #60A5FA;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-demo-login:hover {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: #3B82F6;
+  color: #FFFFFF;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #64748B;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 4px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.auth-divider span {
+  padding: 0 10px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-form .input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.auth-form .field-icon {
+  position: absolute;
+  left: 12px;
+  color: #64748B;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.auth-form .form-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding-left: 36px;
+  padding-right: 36px;
+  color: #F8FAFC;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.auth-form .form-input:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.auth-form .password-toggle {
+>>>>>>> edb94fb (feat: redesign Auth and Legal modals, add Explorer file/folder creation popover & HTML5 drag-and-drop storage)
   position: absolute;
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
   background: transparent;
   border: none;
+<<<<<<< HEAD
   color: #94a3b8;
   cursor: pointer;
   padding: 6px;
@@ -2501,5 +2488,336 @@
   .auth-backdrop {
     padding: 12px;
   }
+=======
+  color: #64748B;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: color 0.2s;
+}
+
+.auth-form .password-toggle:hover {
+  color: #F8FAFC;
+}
+
+.legal-consent-block {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.legal-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.terms-checkbox-input {
+  display: none;
+}
+
+.terms-checkbox-visual {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid #64748B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  flex-shrink: 0;
+  color: #10B981;
+}
+
+.legal-checkbox-row.checked .terms-checkbox-visual {
+  border-color: #10B981;
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.legal-consent-text {
+  font-size: 0.76rem;
+  color: #94A3B8;
+  line-height: 1.4;
+}
+
+.legal-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #60A5FA;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.legal-pill:hover {
+  background: rgba(59, 130, 246, 0.3);
+  color: #FFFFFF;
+}
+
+.btn-auth-submit {
+  width: 100%;
+  height: 42px;
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+  transition: all 0.2s;
+  margin-top: 4px;
+}
+
+.btn-auth-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.55);
+}
+
+.btn-auth-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.auth-footer-toggle {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #94A3B8;
+}
+
+.auth-legal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: #64748B;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 12px;
+}
+
+.auth-legal-footer-link {
+  background: transparent;
+  border: none;
+  color: #64748B;
+  cursor: pointer;
+  font-size: 0.72rem;
+  transition: color 0.15s;
+}
+
+.auth-legal-footer-link:hover {
+  color: #3B82F6;
+  text-decoration: underline;
+}
+
+.legal-modal-box {
+  width: 640px;
+  max-width: 92vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(59, 130, 246, 0.15);
+  overflow: hidden;
+}
+
+.legal-document-body {
+  max-height: 54vh;
+  overflow-y: auto;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin: 12px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.legal-document-body::-webkit-scrollbar,
+.auth-modal-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.legal-document-body::-webkit-scrollbar-thumb,
+.auth-modal-box::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.legal-document-body::-webkit-scrollbar-thumb:hover,
+.auth-modal-box::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* ── FILE EXPLORER PLUS (+), FOLDERS & DRAG AND DROP ─────────────────────── */
+.explorer-add-menu {
+  position: absolute;
+  top: 26px;
+  right: 0;
+  width: 140px;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(59, 130, 246, 0.2);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  animation: popoverFadeIn 0.15s ease-out;
+}
+
+@keyframes popoverFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.add-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #E2E8F0;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.add-menu-item:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #FFFFFF;
+}
+
+.menu-icon-blue { color: #3B82F6; }
+.menu-icon-amber { color: #F59E0B; }
+
+.folder-tree-node {
+  display: flex;
+  flex-direction: column;
+}
+
+.folder-row {
+  font-weight: 700;
+  color: #E2E8F0;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.folder-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.folder-row.drag-over,
+.explorer-section-title.drag-over-root {
+  background: rgba(59, 130, 246, 0.25) !important;
+  border: 1px dashed #3B82F6 !important;
+  border-radius: 4px;
+}
+
+.folder-icon {
+  color: #F59E0B;
+  flex-shrink: 0;
+}
+
+.folder-icon.open {
+  color: #FBBF24;
+}
+
+.chevron-toggle {
+  color: #64748B;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.folder-name {
+  flex: 1;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #F1F5F9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.folder-row:hover .folder-inline-actions {
+  opacity: 1;
+}
+
+.folder-action-btn {
+  background: transparent;
+  border: none;
+  color: #94A3B8;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+
+.folder-action-btn:hover {
+  color: #3B82F6;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.folder-action-btn.delete:hover {
+  color: #EF4444;
+}
+
+.folder-children-list {
+  display: flex;
+  flex-direction: column;
+  margin-left: 12px;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.file-item.indented {
+  padding-left: 8px;
+}
+
+.new-item-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin: 2px 0;
+}
+
+.new-item-form.indented {
+  margin-left: 8px;
+>>>>>>> edb94fb (feat: redesign Auth and Legal modals, add Explorer file/folder creation popover & HTML5 drag-and-drop storage)
 }
 

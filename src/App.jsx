@@ -10,7 +10,7 @@ import AuthModal from './components/AuthModal';
 import SettingsModal from './components/SettingsModal';
 import LegalModal from './components/LegalModal';
 
-import { INITIAL_FILES, MOCK_USER_PROFILE } from './data/defaultFiles';
+import { INITIAL_FILES, INITIAL_FOLDERS, MOCK_USER_PROFILE } from './data/defaultFiles';
 import { optimizeCodeWithBackend } from './utils/optimizerEngine';
 
 export default function App() {
@@ -32,8 +32,6 @@ export default function App() {
   const [activePanel, setActivePanel] = useState('explorer');
 
   // ── localStorage version guard ──────────────────────────────────────────
-  // If the stored files use the old numeric IDs ('1','2'…) instead of the
-  // new semantic IDs ('js-1','py-1'…), wipe stale data so fresh defaults load.
   useEffect(() => {
     const storedFiles = localStorage.getItem('opticode_files');
     if (storedFiles) {
@@ -42,17 +40,26 @@ export default function App() {
         const hasOldIds = parsed.some(f => /^\d+$/.test(f.id));
         if (hasOldIds) {
           localStorage.removeItem('opticode_files');
+          localStorage.removeItem('opticode_folders');
           localStorage.removeItem('opticode_file_optimizations');
-          // Force page reload to pick up the clean INITIAL_FILES
           window.location.reload();
         }
       } catch (_) {
         localStorage.removeItem('opticode_files');
+        localStorage.removeItem('opticode_folders');
         localStorage.removeItem('opticode_file_optimizations');
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Folders State
+  const [folders, setFolders] = useState(() => {
+    const saved = localStorage.getItem('opticode_folders');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (_) {}
+    }
+    return INITIAL_FOLDERS;
+  });
 
   // Files Virtual Workspace State
   const [files, setFiles] = useState(() => {
@@ -60,7 +67,6 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Only use stored files if they have semantic IDs
         if (!parsed.some(f => /^\d+$/.test(f.id))) return parsed;
       } catch (_) {}
     }
@@ -85,12 +91,9 @@ export default function App() {
     try { return JSON.parse(saved); } catch (_) { return {}; }
   });
 
-  // Per-file isOptimizing: tracks WHICH fileId is currently being optimized.
-  // null = nothing optimizing. Loading spinner only shows on the active file
-  // being processed — switching files mid-optimization shows correct state.
   const [optimizingFileId, setOptimizingFileId] = useState(null);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
-  const [maxOptToast, setMaxOptToast] = useState(false); // 'Maximum optimization reached' toast
+  const [maxOptToast, setMaxOptToast] = useState(false);
 
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -112,6 +115,11 @@ export default function App() {
     document.body.className = `theme-${theme}`;
     localStorage.setItem('opticode_theme', theme);
   }, [theme]);
+
+  // Persist folders in localStorage
+  useEffect(() => {
+    localStorage.setItem('opticode_folders', JSON.stringify(folders));
+  }, [folders]);
 
   // Persist files in localStorage
   useEffect(() => {
@@ -164,7 +172,8 @@ export default function App() {
       const newFile = {
         id: String(Date.now()),
         name: `sample_${langId}.${ext}`,
-        path: `src/samples/sample_${langId}.${ext}`,
+        folderId: null,
+        path: `src/sample_${langId}.${ext}`,
         language: langId,
         content: `// Sample ${langId.toUpperCase()} Code\nfunction sample() {\n  // Code ready for optimization\n}`
       };
@@ -179,7 +188,7 @@ export default function App() {
     setFiles(prev => prev.map(f => f.id === fileId ? { ...f, content: newContent } : f));
   };
 
-  const handleCreateFile = (name) => {
+  const handleCreateFile = (name, targetFolderId = null) => {
     const ext = name.split('.').pop().toLowerCase();
     let lang = 'javascript';
     if (ext === 'py') lang = 'python';
@@ -187,15 +196,38 @@ export default function App() {
     if (ext === 'java') lang = 'java';
     if (ext === 'rs') lang = 'rust';
 
+    const targetFolder = folders.find(f => f.id === targetFolderId);
+    const folderPath = targetFolder ? targetFolder.name : '';
+
     const newFile = {
-      id: String(Date.now()),
+      id: `file-${Date.now()}`,
       name: name,
-      path: `src/${name}`,
+      folderId: targetFolderId,
+      path: folderPath ? `src/${folderPath}/${name}` : `src/${name}`,
       language: lang,
       content: `// New file ${name}\n`
     };
     setFiles(prev => [...prev, newFile]);
     setActiveFileId(newFile.id);
+  };
+
+  const handleCreateFolder = (folderName, parentId = null) => {
+    const newFolder = {
+      id: `folder-${Date.now()}`,
+      name: folderName,
+      parentId: parentId
+    };
+    setFolders(prev => [...prev, newFolder]);
+  };
+
+  const handleDeleteFolder = (folderId) => {
+    setFolders(prev => prev.filter(f => f.id !== folderId));
+    // Move contained files to root (folderId: null) so no files are lost
+    setFiles(prev => prev.map(f => f.folderId === folderId ? { ...f, folderId: null } : f));
+  };
+
+  const handleMoveFileToFolder = (fileId, targetFolderId) => {
+    setFiles(prev => prev.map(f => f.id === fileId ? { ...f, folderId: targetFolderId } : f));
   };
 
   const handleDeleteFile = (fileId) => {
@@ -320,10 +352,14 @@ export default function App() {
             {activePanel === 'explorer' && (
               <FileExplorer
                 files={files}
+                folders={folders}
                 activeFileId={activeFileId}
                 onSelectFile={(id) => setActiveFileId(id)}
                 onCreateFile={handleCreateFile}
+                onCreateFolder={handleCreateFolder}
                 onDeleteFile={handleDeleteFile}
+                onDeleteFolder={handleDeleteFolder}
+                onMoveFileToFolder={handleMoveFileToFolder}
                 viewMode={viewMode}
                 setViewMode={setViewMode}
               />

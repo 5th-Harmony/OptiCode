@@ -2,15 +2,21 @@
 // Each file has a UNIQUE function signature & a specific complexity bottleneck
 // so optimizerEngine.js can produce a UNIQUE optimization result per file.
 
+export const INITIAL_FOLDERS = [
+  { id: 'folder-components', name: 'components', parentId: null },
+  { id: 'folder-utils', name: 'utils', parentId: null }
+];
+
 export const INITIAL_FILES = [
 
   // ══════════════════════════════════════════════════════════════
-  // JAVASCRIPT — 3 files, each with a different bottleneck pattern
+  // JAVASCRIPT — 3 files in components folder
   // ══════════════════════════════════════════════════════════════
 
   {
     id: 'js-1',
     name: 'DataGrid.js',
+    folderId: 'folder-components',
     path: 'src/components/DataGrid.js',
     language: 'javascript',
     content: `// DataGrid.js — O(n²) nested duplicate scan + manual groupBy
@@ -58,6 +64,7 @@ console.log('Groups:', Object.keys(groupByCategory(sampleItems)).length);`
   {
     id: 'js-2',
     name: 'SearchEngine.js',
+    folderId: 'folder-components',
     path: 'src/search/SearchEngine.js',
     language: 'javascript',
     content: `// SearchEngine.js — O(n*m) brute-force substring search + O(n²) ranking sort
@@ -100,6 +107,7 @@ console.log('Hits:', rankResults(hits).length);`
   {
     id: 'js-3',
     name: 'EventManager.js',
+    folderId: 'folder-components',
     path: 'src/core/EventManager.js',
     language: 'javascript',
     content: `// EventManager.js — O(n) listener scan + memory leak patterns
@@ -143,6 +151,7 @@ mgr.emit('data', 42);  // Calls all 1000 listeners`
   {
     id: 'py-1',
     name: 'algo.py',
+    folderId: 'folder-utils',
     path: 'src/utils/algo.py',
     language: 'python',
     content: `# algo.py — O(n²) duplicate scan + O(2^n) Fibonacci recursion
@@ -182,6 +191,7 @@ print("Pairs:", count_pairs_with_sum(list(range(200)), 100))`
   {
     id: 'py-2',
     name: 'graph_bfs.py',
+    folderId: 'folder-utils',
     path: 'src/graphs/graph_bfs.py',
     language: 'python',
     content: `# graph_bfs.py — O(V*(V+E)) BFS with O(n) visited check + O(n²) adjacency build
@@ -228,6 +238,7 @@ print("Path length:", len(path))`
   {
     id: 'py-3',
     name: 'prime_sieve.py',
+    folderId: 'folder-utils',
     path: 'src/math/prime_sieve.py',
     language: 'python',
     content: `# prime_sieve.py — O(n*sqrt(n)) trial division vs O(n log log n) sieve
