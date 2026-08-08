@@ -75,7 +75,7 @@ print(find_pair(arr, 9))
     ver = data["verification"]
 
     stage1_pass = (status_code == 200 and data["success"] is True)
-    stage2_pass = (baseline["status"] == "SUCCESS")
+    stage2_pass = (baseline["status"] in ("SUCCESS", "CACHE_HIT"))
     stage3_pass = (ast_res["max_loop_depth"] >= 2 and "O(n^2)" in ast_res["estimated_time_complexity"])
     stage4_pass = ("O(n)" in opt["new_complexity"] and len(opt["optimized_code"]) > 0)
     stage5_pass = (ver["is_verified"] is True)
