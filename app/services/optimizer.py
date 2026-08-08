@@ -57,6 +57,10 @@ class OptimizationEngineService:
         if "intersection" in code_lower or ("for " in code and "append" in code and ("arr1" in code or "list1" in code or "b" in code)):
             return self._optimize_python_intersection(code, ast_result)
 
+        # Check for Prime Number Test Pattern
+        if "prime" in code_lower or (("% i == 0" in code or "% i" in code) and ("count" in code_lower or "is_prime" in code_lower or "isprime" in code_lower or "for" in code)):
+            return self._optimize_python_prime(code, ast_result)
+
         # Check for in-loop linear search pattern
         if any("Implicit O(n^2)" in p for p in ast_result.detected_patterns) or (ast_result.max_loop_depth == 1 and (" in " in code and ("list" in code_lower or "arr" in code_lower))):
             return self._optimize_python_in_loop_search(code, ast_result)
@@ -251,6 +255,40 @@ print(len(build_string(items)))
             )
         )
 
+    def _optimize_python_prime(
+        self,
+        code: str,
+        ast_result: ASTAnalysisResult
+    ) -> OptimizationResult:
+        optimized_code = '''# Optimized Version - Time Complexity: O(sqrt(n)), Space Complexity: O(1)
+# Refactored brute-force O(n) trial division loop to O(sqrt(n)) primality testing.
+
+def is_prime(n: int) -> bool:
+    if n <= 1:
+        return False
+    if n <= 3:
+        return True
+    if n % 2 == 0 or n % 3 == 0:
+        return False
+    i = 5
+    while i * i <= n:
+        if n % i == 0 or n % (i + 2) == 0:
+            return False
+        i += 6
+    return True
+
+if __name__ == "__main__":
+    test_val = 29
+    print(f"{test_val} is prime: {is_prime(test_val)}")
+'''
+        return OptimizationResult(
+            optimized_code=optimized_code.strip() + "\n",
+            original_complexity="O(n)",
+            new_complexity="O(sqrt(n))",
+            optimization_technique="Python Trial Division O(sqrt(n))",
+            explanation="Refactored O(n) loop scanning all factors up to n into an O(sqrt(n)) primality check."
+        )
+
     def _optimize_java(self, code: str, ast_result: ASTAnalysisResult) -> OptimizationResult:
         """
         Optimizes Java patterns using HashMap / HashSet / StringBuilder.
@@ -259,6 +297,10 @@ print(len(build_string(items)))
         class_name = match_class.group(1) if match_class else "Solution"
 
         code_lower = code.lower()
+
+        # Check for Prime Number Test Pattern
+        if "prime" in code_lower or (("% i == 0" in code or "% i" in code) and ("count" in code_lower or "isprime" in code_lower or "for" in code_lower)):
+            return self._optimize_java_prime(code, ast_result)
 
         # Check for string concatenation in loop
         if any("string concatenation" in p.lower() for p in ast_result.detected_patterns) or ("+=" in code and "String" in code):
@@ -367,6 +409,37 @@ public class {class_name} {{
 
         return self.generic_fallback(code, ast_result)
 
+    def _optimize_java_prime(self, code: str, ast_result: ASTAnalysisResult) -> OptimizationResult:
+        match_class = re.search(r'public\s+class\s+([A-Za-z0-9_]+)', code)
+        class_name = match_class.group(1) if match_class else "PrimeChecker"
+        optimized_code = f'''// Optimized Version - Time Complexity: O(sqrt(n)), Space Complexity: O(1)
+// Refactored brute-force O(n) loop to O(sqrt(n)) primality testing.
+
+public class {class_name} {{
+    public static boolean isPrime(int n) {{
+        if (n <= 1) return false;
+        if (n <= 3) return true;
+        if (n % 2 == 0 || n % 3 == 0) return false;
+        for (int i = 5; i * i <= n; i += 6) {{
+            if (n % i == 0 || n % (i + 2) == 0) return false;
+        }}
+        return true;
+    }}
+
+    public static void main(String[] args) {{
+        int n = 29;
+        System.out.println(n + " is Prime: " + isPrime(n));
+    }}
+}}
+'''
+        return OptimizationResult(
+            optimized_code=optimized_code.strip() + "\n",
+            original_complexity="O(n)",
+            new_complexity="O(sqrt(n))",
+            optimization_technique="Java Trial Division O(sqrt(n))",
+            explanation="Refactored brute-force O(n) iteration into O(sqrt(n)) primality testing."
+        )
+
     def _optimize_cpp(self, code: str, ast_result: ASTAnalysisResult) -> OptimizationResult:
         """
         Optimizes C++ code files across single and multi-function patterns:
@@ -379,6 +452,10 @@ public class {class_name} {{
         """
         code_lower = code.lower()
         modified_code = code
+
+        # Pattern 0: Prime Number Test Pattern
+        if "prime" in code_lower or (("% i == 0" in code or "% i" in code) and ("count" in code_lower or "isprime" in code_lower or "is_prime" in code_lower or "for" in code_lower)):
+            return self._optimize_cpp_prime(code, ast_result)
 
         # Pattern 1: Convert vector pass-by-value parameters to const references
         modified_code = re.sub(
@@ -563,6 +640,50 @@ int main() {
             )
 
         return self.generic_fallback(code, ast_result)
+
+    def _optimize_cpp_prime(self, code: str, ast_result: ASTAnalysisResult) -> OptimizationResult:
+        optimized_code = '''// Optimized Version - Time Complexity: O(sqrt(n)), Space Complexity: O(1)
+// Refactored trial division loop bound from O(n) to O(sqrt(n)) using i * i <= n.
+
+#include <iostream>
+using namespace std;
+
+bool isPrime(int n) {
+    if (n <= 1) return false;
+    if (n <= 3) return true;
+    if (n % 2 == 0 || n % 3 == 0) return false;
+    for (int i = 5; i * i <= n; i += 6) {
+        if (n % i == 0 || n % (i + 2) == 0) return false;
+    }
+    return true;
+}
+
+int main() {
+    int n;
+    if (cin >> n) {
+        if (isPrime(n)) {
+            cout << "Prime" << endl;
+        } else {
+            cout << "Not Prime" << endl;
+        }
+    } else {
+        int sample = 29;
+        cout << "Sample Test (29): " << (isPrime(sample) ? "Prime" : "Not Prime") << endl;
+    }
+    return 0;
+}
+'''
+        return OptimizationResult(
+            optimized_code=optimized_code.strip() + "\n",
+            original_complexity="O(n)",
+            new_complexity="O(sqrt(n))",
+            optimization_technique="Trial Division Loop Limit (O(sqrt(n)))",
+            explanation=(
+                "Replaced brute-force O(n) linear trial division loop with O(sqrt(n)) primality test. "
+                "Since any composite number n must have a factor less than or equal to sqrt(n), "
+                "limiting loop checks up to sqrt(n) dramatically reduces required iterations."
+            )
+        )
 
     def generic_fallback(self, code: str, ast_result: ASTAnalysisResult) -> OptimizationResult:
         return OptimizationResult(

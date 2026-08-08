@@ -1,6 +1,8 @@
 import shutil
 import sys
-from fastapi import APIRouter, HTTPException, status
+# pyrefly: ignore [missing-import]
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from pydantic import BaseModel, EmailStr
 from app.api.schemas import (
     CodeOptimizationRequest,
     CodeOptimizationResponse,
@@ -24,12 +26,83 @@ from app.services.ast_parser import ast_parser_service
 from app.services.optimizer import optimizer_engine_service
 from app.services.verifier import semantic_verifier_service
 from app.utils.logger import get_logger
+from app.utils.rate_limiter import rate_limiter, POLICY_LOGIN, POLICY_OPTIMIZE, POLICY_GENERAL
 
 from app.db import check_cache, store_cache, store_log, get_db
 
 logger = get_logger("APIRoutes")
 
 router = APIRouter()
+
+
+# ─── Auth Schemas ─────────────────────────────────────────────────────────────
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class LoginResponse(BaseModel):
+    success: bool
+    username: str = ""
+    email: str = ""
+    token: str = ""
+    message: str = ""
+
+
+# ─── Auth Endpoints ───────────────────────────────────────────────────────────
+
+@router.post("/auth/login", response_model=LoginResponse, tags=["Auth"])
+def login_endpoint(request: Request, response: Response, body: LoginRequest):
+    """
+    Authenticated login with IP-based rate limiting.
+    Industry standard: 5 attempts per 15 minutes per IP. 15-minute lockout after exhaustion.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    allowed, rl_info = rate_limiter.is_allowed(client_ip, "login", **POLICY_LOGIN)
+
+    # Always attach rate limit headers
+    response.headers["X-RateLimit-Limit"] = str(rl_info["X-RateLimit-Limit"])
+    response.headers["X-RateLimit-Remaining"] = str(rl_info["X-RateLimit-Remaining"])
+    response.headers["X-RateLimit-Reset"] = str(rl_info["X-RateLimit-Reset"])
+
+    if not allowed:
+        retry = rl_info["Retry-After"]
+        mins = round(retry / 60)
+        msg = (
+            f"Account temporarily locked due to too many failed attempts. "
+            f"Please try again in {mins} minute(s)."
+            if rl_info.get("blocked")
+            else f"Too many login attempts. Please wait {retry} seconds."
+        )
+        response.headers["Retry-After"] = str(retry)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"success": False, "message": msg, "retry_after": retry}
+        )
+
+    # Demo credential check (replace with real DB lookup in production)
+    DEMO_USERS = {
+        "alex.dev@opticode.io": {"password": "opticode2024", "username": "dev_architect_99"},
+        "admin@opticode.io":    {"password": "admin123",     "username": "admin"},
+    }
+    user = DEMO_USERS.get(body.email.lower().strip())
+    if not user or user["password"] != body.password:
+        logger.warning(f"[AUTH] Failed login attempt from IP={client_ip} email={body.email}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"success": False, "message": "Invalid email or password.", "retry_after": 0}
+        )
+
+    # Success — reset rate limit counter
+    rate_limiter.reset(client_ip, "login")
+    logger.info(f"[AUTH] Successful login: {body.email} from IP={client_ip}")
+    return LoginResponse(
+        success=True,
+        username=user["username"],
+        email=body.email,
+        token=f"demo-jwt-{user['username']}-2026",
+        message="Login successful."
+    )
 
 @router.get("/health", tags=["Health"])
 def health_check():
@@ -47,7 +120,7 @@ def health_check():
     status_code=status.HTTP_200_OK,
     tags=["Optimization Pipeline"]
 )
-def optimize_code_endpoint(request: CodeOptimizationRequest):
+def optimize_code_endpoint(http_request: Request, response: Response, request: CodeOptimizationRequest):
     """
     5-Stage Big-O Optimization Pipeline with Database Caching:
     1. Check OptimizationCache Table (Fast Cache Hit Lookup)
@@ -56,7 +129,19 @@ def optimize_code_endpoint(request: CodeOptimizationRequest):
     4. AST Structural Parsing & Bottleneck Detection
     5. Optimization Engine Pattern Refactoring & Persistence
     """
-    logger.info(f"Received optimization request for language: {request.language}")
+    # IP Rate Limiting — 30 requests/min per client
+    client_ip = http_request.client.host if http_request.client else "unknown"
+    allowed, rl_info = rate_limiter.is_allowed(client_ip, "optimize", **POLICY_OPTIMIZE)
+    response.headers["X-RateLimit-Limit"] = str(rl_info["X-RateLimit-Limit"])
+    response.headers["X-RateLimit-Remaining"] = str(rl_info["X-RateLimit-Remaining"])
+    response.headers["X-RateLimit-Reset"] = str(rl_info["X-RateLimit-Reset"])
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded. Max 30 optimization requests per minute. Retry in {rl_info['Retry-After']}s."
+        )
+
+    logger.info(f"Received optimization request for language: {request.language} from IP={client_ip}")
 
     try:
         language = request.language
@@ -67,7 +152,7 @@ def optimize_code_endpoint(request: CodeOptimizationRequest):
         cached_entry = check_cache(code, language)
         if cached_entry:
             logger.info("Database CACHE HIT! Returning instant cached optimization.")
-            # Record log entry
+            # Record log entry for this cache hit
             store_log(
                 original_code=code,
                 optimized_code=cached_entry["optimized_code"],
@@ -76,6 +161,34 @@ def optimize_code_endpoint(request: CodeOptimizationRequest):
                 optimized_complexity=cached_entry["optimized_big_o"],
                 speedup_factor=cached_entry["speedup_factor"],
                 execution_time_ms=1.2
+            )
+            from app.api.schemas import (
+                OptimizationResult, SandboxExecutionResult, VerificationResult
+            )
+            return CodeOptimizationResponse(
+                success=True,
+                language=language,
+                baseline_execution=SandboxExecutionResult(
+                    status="CACHE_HIT", stdout="", stderr="",
+                    execution_time_ms=1.2, exit_code=0
+                ),
+                ast_analysis=ast_parser_service.analyze(language, code),
+                optimization=OptimizationResult(
+                    optimized_code=cached_entry["optimized_code"],
+                    original_complexity=cached_entry["original_big_o"],
+                    new_complexity=cached_entry["optimized_big_o"],
+                    optimization_technique="Cache Hit (SHA-256 Lookup)",
+                    explanation="Result retrieved from OptimizationCache (SHA-256 hash match). No re-processing needed."
+                ),
+                verification=VerificationResult(
+                    is_verified=True,
+                    stdout_matched=True,
+                    original_runtime_ms=1.2,
+                    optimized_runtime_ms=1.2,
+                    speedup_ratio=float(cached_entry["speedup_factor"].replace("x", "")) if cached_entry["speedup_factor"].replace("x", "").replace(".", "").isdigit() else 1.0,
+                    details="Returned from cache."
+                ),
+                error_message=None
             )
 
         # Stage 2: Sandbox Execution
