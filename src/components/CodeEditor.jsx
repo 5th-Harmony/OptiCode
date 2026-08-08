@@ -154,8 +154,26 @@ export default function CodeEditor({
           <textarea
             ref={sourceTextareaRef}
             className="code-textarea code-font"
+            style={{
+              fontSize: 'var(--editor-font-size, 14px)',
+              tabSize: 'var(--editor-tab-size, 2)'
+            }}
             value={activeFile.content}
             onChange={(e) => onUpdateContent(activeFile.id, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab') {
+                e.preventDefault();
+                const target = e.target;
+                const start = target.selectionStart;
+                const end = target.selectionEnd;
+                const tabSpaces = '  '; // 2 spaces
+                const newContent = activeFile.content.substring(0, start) + tabSpaces + activeFile.content.substring(end);
+                onUpdateContent(activeFile.id, newContent);
+                setTimeout(() => {
+                  target.selectionStart = target.selectionEnd = start + tabSpaces.length;
+                }, 0);
+              }
+            }}
             onScroll={handleSourceScroll}
             placeholder="Type or paste code here..."
             spellCheck="false"
@@ -251,6 +269,10 @@ export default function CodeEditor({
               <pre
                 ref={optimizedPreRef}
                 className="code-pre code-font"
+                style={{
+                  fontSize: 'var(--editor-font-size, 14px)',
+                  tabSize: 'var(--editor-tab-size, 2)'
+                }}
                 onScroll={handleOptimizedScroll}
               >
                 <code>{optimizedResult.optimizedCode}</code>

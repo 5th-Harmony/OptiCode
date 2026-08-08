@@ -11,7 +11,7 @@ import SettingsModal from './components/SettingsModal';
 import LegalModal from './components/LegalModal';
 
 import { INITIAL_FILES, INITIAL_FOLDERS, MOCK_USER_PROFILE } from './data/defaultFiles';
-import { optimizeCodeWithBackend } from './utils/optimizerEngine';
+import { runOptiCodeAgent } from './utils/optiCodeAgent';
 
 export default function App() {
   // Theme state ('dark' or 'light')
@@ -102,13 +102,23 @@ export default function App() {
   const [legalModalTab, setLegalModalTab] = useState('terms');
 
   // IDE Settings State
-  const [settings, setSettings] = useState({
-    fontSize: 14,
-    tabSize: 2,
-    aiModel: 'opticode-3.6-pro',
-    autoFormat: true,
-    strictMode: true
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem('opticode_settings');
+    return saved ? JSON.parse(saved) : {
+      fontSize: 14,
+      tabSize: 2,
+      aiModel: 'opticode-3.6-pro',
+      autoFormat: true,
+      strictMode: true
+    };
   });
+
+  // Dynamically apply settings to CSS variables
+  useEffect(() => {
+    localStorage.setItem('opticode_settings', JSON.stringify(settings));
+    document.documentElement.style.setProperty('--editor-font-size', `${settings.fontSize}px`);
+    document.documentElement.style.setProperty('--editor-tab-size', `${settings.tabSize}`);
+  }, [settings]);
 
   // Sync Theme to body class
   useEffect(() => {
@@ -170,7 +180,7 @@ export default function App() {
       const extensionMap = { javascript: 'js', python: 'py', cpp: 'cpp', java: 'java', rust: 'rs' };
       const ext = extensionMap[langId] || 'txt';
       const newFile = {
-        id: String(Date.now()),
+        id: `file-${Date.now()}`,
         name: `sample_${langId}.${ext}`,
         folderId: null,
         path: `src/sample_${langId}.${ext}`,
@@ -186,6 +196,13 @@ export default function App() {
   // File Operations
   const handleUpdateFileContent = (fileId, newContent) => {
     setFiles(prev => prev.map(f => f.id === fileId ? { ...f, content: newContent } : f));
+    // If source code is modified, clear outdated optimization result for that file
+    setFileOptimizations(prev => {
+      if (!prev[fileId]) return prev;
+      const updated = { ...prev };
+      delete updated[fileId];
+      return updated;
+    });
   };
 
   const handleCreateFile = (name, targetFolderId = null) => {
@@ -222,7 +239,6 @@ export default function App() {
 
   const handleDeleteFolder = (folderId) => {
     setFolders(prev => prev.filter(f => f.id !== folderId));
-    // Move contained files to root (folderId: null) so no files are lost
     setFiles(prev => prev.map(f => f.folderId === folderId ? { ...f, folderId: null } : f));
   };
 
@@ -237,7 +253,6 @@ export default function App() {
     if (activeFileId === fileId) {
       setActiveFileId(remaining[0].id);
     }
-    // Remove optimization entry for deleted file
     setFileOptimizations(prev => {
       const updated = { ...prev };
       delete updated[fileId];
@@ -245,18 +260,16 @@ export default function App() {
     });
   };
 
-  // Trigger Code Optimization for Active File
+  // Trigger Code Optimization for Active File via OptiCode Agent
   const handleOptimize = async () => {
-    // Snapshot the file we're optimizing at the moment the button is clicked.
-    // If the user switches files mid-optimization, we still store the result
-    // under the correct original fileId, not the newly selected file.
     const targetFile = activeFile;
     if (!targetFile || optimizingFileId !== null) return;
 
     setOptimizingFileId(targetFile.id);
 
     try {
-      const result = await optimizeCodeWithBackend(
+      // Run the OptiCode Agent — 6-step read-analyze-classify-plan-transform-measure pipeline
+      const result = await runOptiCodeAgent(
         targetFile.content,
         targetFile.language,
         targetFile.name
@@ -271,14 +284,30 @@ export default function App() {
         return;
       }
 
-      // Store result keyed by the FILE THAT WAS OPTIMIZED (not current active file)
+      // Store result keyed by the FILE THAT WAS OPTIMIZED (per-file isolation)
       setFileOptimizations(prev => ({
         ...prev,
         [targetFile.id]: result
       }));
 
       setOptimizingFileId(null);
-      setIsTerminalOpen(true); // Open terminal to show complexity analysis
+      setIsTerminalOpen(true);
+
+      // Record authentic usage telemetry into history
+      const newLog = {
+        id: `opt-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        fileName: targetFile.name,
+        language: targetFile.language,
+        gain: result.timeEfficiencyGain || '+speedup',
+        speedup: `${result.rawAnalysis?.issues?.[0]?.complexityBefore || result.timeBefore} → ${result.timeAfter}`,
+        technique: result.spaceMemorySaved || 'Optimized'
+      };
+
+      try {
+        const currentHist = JSON.parse(localStorage.getItem('opticode_analytics_history') || '[]');
+        localStorage.setItem('opticode_analytics_history', JSON.stringify([newLog, ...currentHist].slice(0, 30)));
+      } catch (_) {}
 
       // Update User Stats if logged in
       if (user.isLoggedIn) {
@@ -292,7 +321,7 @@ export default function App() {
         }));
       }
     } catch (err) {
-      console.error('[OptiCode] Optimization failed:', err);
+      console.error('[OptiCode Agent] Optimization failed:', err);
       setOptimizingFileId(null);
     }
   };
@@ -300,7 +329,11 @@ export default function App() {
   // Apply Optimized Code back to Active Source File
   const handleApplyOptimization = () => {
     if (activeOptimizationResult && activeFile) {
-      handleUpdateFileContent(activeFile.id, activeOptimizationResult.optimizedCode);
+      let codeToApply = activeOptimizationResult.optimizedCode;
+      if (settings.autoFormat) {
+        codeToApply = codeToApply.trim() + '\n';
+      }
+      handleUpdateFileContent(activeFile.id, codeToApply);
     }
   };
 
@@ -378,6 +411,7 @@ export default function App() {
         <main className="workspace-area">
           {viewMode === 'editor' ? (
             <CodeEditor
+              key={activeFileId}
               activeFile={activeFile}
               onUpdateContent={handleUpdateFileContent}
               onOptimize={handleOptimize}
@@ -388,6 +422,8 @@ export default function App() {
           ) : (
             <UserDashboard
               user={user}
+              files={files}
+              fileOptimizations={fileOptimizations}
               onUpdateUser={(updated) => setUser(prev => ({ ...prev, ...updated }))}
               onOpenEditor={() => {
                 setViewMode('editor');

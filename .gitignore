@@ -43,4 +43,5 @@ __pycache__/
 *.db
 .venv/
 .tempmediaStorage/
+.pytest_cache/
 

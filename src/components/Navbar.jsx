@@ -62,12 +62,6 @@ export default function Navbar({
             <span>Dashboard</span>
           </button>
         </div>
-
-        {/* Live Backend Connection Indicator */}
-        <div className="backend-indicator" title={backendOnline ? "FastAPI Optimization Pipeline Online" : "FastAPI Backend Standby"}>
-          <span className={`status-dot ${backendOnline ? 'green' : 'amber'}`}></span>
-          <span className="backend-text">{backendOnline ? 'Backend: Connected' : 'Backend: Local Engine'}</span>
-        </div>
       </div>
 
 

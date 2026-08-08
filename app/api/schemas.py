@@ -10,6 +10,8 @@ class SupportedLanguage(str, Enum):
     PYTHON = "python"
     JAVA = "java"
     CPP = "cpp"
+    JAVASCRIPT = "javascript"
+    RUST = "rust"
 
 class CodeOptimizationRequest(BaseModel):
     language: SupportedLanguage = Field(..., description="Target programming language (python, java, cpp)")

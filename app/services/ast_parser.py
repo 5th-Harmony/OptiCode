@@ -23,14 +23,12 @@ class ASTParserService:
             return self._analyze_heuristic_ast(code, language="java")
         elif language == SupportedLanguage.CPP:
             return self._analyze_heuristic_ast(code, language="cpp")
+        elif language == SupportedLanguage.JAVASCRIPT:
+            return self._analyze_heuristic_ast(code, language="javascript")
+        elif language == SupportedLanguage.RUST:
+            return self._analyze_heuristic_ast(code, language="rust")
         else:
-            return ASTAnalysisResult(
-                max_loop_depth=1,
-                estimated_time_complexity="O(n)",
-                estimated_space_complexity="O(1)",
-                detected_patterns=["Standard sequential execution"],
-                ast_tree_repr="<AST Unparsed>"
-            )
+            return self.generic_fallback_ast(code)
 
     def _analyze_python_ast(self, code: str) -> ASTAnalysisResult:
         """

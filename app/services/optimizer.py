@@ -29,6 +29,10 @@ class OptimizationEngineService:
             return self._optimize_java(code, ast_result)
         elif language == SupportedLanguage.CPP:
             return self._optimize_cpp(code, ast_result)
+        elif language == SupportedLanguage.JAVASCRIPT:
+            return self._optimize_javascript(code, ast_result)
+        elif language == SupportedLanguage.RUST:
+            return self._optimize_rust(code, ast_result)
         else:
             return self.generic_fallback(code, ast_result)
 
@@ -906,6 +910,291 @@ int main() {
             )
         )
 
+    def _optimize_javascript(self, code: str, ast_result: ASTAnalysisResult) -> OptimizationResult:
+        """
+        Optimizes JavaScript code patterns using Map, Set, string buffers, and memoization.
+        """
+        code_lower = code.lower()
+
+        # Check for string concatenation in loop
+        if any("string concatenation" in p.lower() for p in ast_result.detected_patterns) or ("+=" in code and ("str" in code_lower or "text" in code_lower or "result" in code_lower)):
+            optimized_code = '''// Optimized Version - Time Complexity: O(n), Space Complexity: O(n)
+// Refactored repeated string concatenation inside loop to Array buffer join.
+
+function buildString(items) {
+  const buffer = [];
+  for (let i = 0; i < items.length; i++) {
+    buffer.push(items[i]);
+  }
+  return buffer.join('');
+}
+
+const items = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+console.log(buildString(items));
+'''
+            return OptimizationResult(
+                optimized_code=optimized_code.strip() + "\n",
+                original_complexity="O(n^2)",
+                new_complexity="O(n)",
+                optimization_technique="JavaScript Array Buffer Join",
+                explanation="Replaced O(n^2) immutable string re-allocation with an Array push buffer, joined in linear O(n) time."
+            )
+
+        # Check for duplicate detection
+        if "duplicate" in code_lower or "unique" in code_lower or ("arr[i] === arr[j]" in code or "items[i] === result[j]" in code or "exists" in code_lower):
+            optimized_code = '''// Optimized Version - Time Complexity: O(n), Space Complexity: O(n)
+// Refactored duplicate detection using JavaScript Set for O(1) lookups.
+
+function hasDuplicate(arr) {
+  const seen = new Set();
+  for (const item of arr) {
+    if (seen.has(item)) {
+      return true;
+    }
+    seen.add(item);
+  }
+  return false;
+}
+
+const data = [2, 7, 11, 15, 2, 6, 1];
+console.log(hasDuplicate(data));
+'''
+            return OptimizationResult(
+                optimized_code=optimized_code.strip() + "\n",
+                original_complexity="O(n^2)",
+                new_complexity="O(n)",
+                optimization_technique="JavaScript Set Duplicate Detection",
+                explanation="Replaced pairwise nested loop iteration with JavaScript Set, reducing lookup time from O(n) to average O(1)."
+            )
+
+        # Check for array intersection
+        if "intersection" in code_lower or ("for" in code and "filter" in code_lower and "includes" in code_lower):
+            optimized_code = '''// Optimized Version - Time Complexity: O(n + m), Space Complexity: O(m)
+// Refactored array intersection using Set lookup.
+
+function findIntersection(arr1, arr2) {
+  const set2 = new Set(arr2);
+  return arr1.filter(item => set2.has(item));
+}
+
+const listA = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const listB = [5, 6, 7, 8, 9, 10, 11, 12, 13];
+console.log(findIntersection(listA, listB));
+'''
+            return OptimizationResult(
+                optimized_code=optimized_code.strip() + "\n",
+                original_complexity="O(n * m)",
+                new_complexity="O(n + m)",
+                optimization_technique="JavaScript Set Intersection",
+                explanation="Converted second array into a Set for O(1) membership checks, reducing time complexity from O(n*m) to O(n+m)."
+            )
+
+        # Check for Prime Number test
+        if "prime" in code_lower or (("% i === 0" in code or "% i == 0" in code) and ("isprime" in code_lower or "count" in code_lower)):
+            optimized_code = '''// Optimized Version - Time Complexity: O(sqrt(n)), Space Complexity: O(1)
+// Refactored trial division loop bound from O(n) to O(sqrt(n)).
+
+function isPrime(n) {
+  if (n <= 1) return false;
+  if (n <= 3) return true;
+  if (n % 2 === 0 || n % 3 === 0) return false;
+  for (let i = 5; i * i <= n; i += 6) {
+    if (n % i === 0 || n % (i + 2) === 0) return false;
+  }
+  return true;
+}
+
+const val = 29;
+console.log(`${val} is prime: ${isPrime(val)}`);
+'''
+            return OptimizationResult(
+                optimized_code=optimized_code.strip() + "\n",
+                original_complexity="O(n)",
+                new_complexity="O(sqrt(n))",
+                optimization_technique="JavaScript Trial Division (O(sqrt(n)))",
+                explanation="Refactored linear loop scanning all factors up to n into an O(sqrt(n)) primality test."
+            )
+
+        # Check for un-memoized Fibonacci / recursion
+        if "fib" in code_lower or "fibonacci" in code_lower:
+            optimized_code = '''// Optimized Version - Time Complexity: O(n), Space Complexity: O(n)
+// Refactored exponential O(2^n) recursion with dynamic programming memoization.
+
+function fibonacci(n, memo = {}) {
+  if (n <= 1) return n;
+  if (n in memo) return memo[n];
+  return (memo[n] = fibonacci(n - 1, memo) + fibonacci(n - 2, memo));
+}
+
+console.log(fibonacci(40));
+'''
+            return OptimizationResult(
+                optimized_code=optimized_code.strip() + "\n",
+                original_complexity="O(2^n)",
+                new_complexity="O(n)",
+                optimization_technique="JavaScript Memoized Dynamic Programming",
+                explanation="Eliminated redundant exponential branching by memoizing subproblem solutions in an O(1) lookup dictionary."
+            )
+
+        # Default Two Sum / Pairwise Search pattern
+        if ast_result.max_loop_depth >= 2 or code.count("for") >= 2 or "O(n^2)" in ast_result.estimated_time_complexity:
+            optimized_code = '''// Optimized Version - Time Complexity: O(n), Space Complexity: O(n)
+// Refactored using JavaScript Map for O(1) complement lookups.
+
+function findTargetPair(arr, target) {
+  const map = new Map();
+  for (let i = 0; i < arr.length; i++) {
+    const complement = target - arr[i];
+    if (map.has(complement)) {
+      return [map.get(complement), i];
+    }
+    map.set(arr[i], i);
+  }
+  return null;
+}
+
+const arr = [2, 7, 11, 15, 3, 6, 1, 8, 9, 4, 5];
+console.log(findTargetPair(arr, 9));
+'''
+            return OptimizationResult(
+                optimized_code=optimized_code.strip() + "\n",
+                original_complexity="O(n^2)",
+                new_complexity="O(n)",
+                optimization_technique="JavaScript Map Single Pass Lookup",
+                explanation="Replaced nested quadratic loops with a single pass Map lookup, reducing runtime from O(n^2) to O(n)."
+            )
+
+        return self.generic_fallback(code, ast_result)
+
+    def _optimize_rust(self, code: str, ast_result: ASTAnalysisResult) -> OptimizationResult:
+        """
+        Optimizes Rust code patterns using HashSet, HashMap, pre-allocation, and zero-copy iteration.
+        """
+        code_lower = code.lower()
+
+        # Check for duplicate detection
+        if "duplicate" in code_lower or "seen" in code_lower or ("arr[i] == arr[j]" in code or "v[i] == v[j]" in code):
+            optimized_code = '''// Optimized Version - Time Complexity: O(n), Space Complexity: O(n)
+// Refactored duplicate detection using std::collections::HashSet.
+
+use std::collections::HashSet;
+
+pub fn has_duplicate(arr: &[i32]) -> bool {
+    let mut seen = HashSet::with_capacity(arr.len());
+    for &item in arr {
+        if !seen.insert(item) {
+            return true;
+        }
+    }
+    false
+}
+
+fn main() {
+    let data = vec![2, 7, 11, 15, 2, 6, 1];
+    println!("Has Duplicate: {}", has_duplicate(&data));
+}
+'''
+            return OptimizationResult(
+                optimized_code=optimized_code.strip() + "\n",
+                original_complexity="O(n^2)",
+                new_complexity="O(n)",
+                optimization_technique="Rust HashSet Duplicate Detection",
+                explanation="Replaced quadratic nested loop comparisons with pre-allocated std::collections::HashSet for O(1) average insertions."
+            )
+
+        # Check for string allocation in loop
+        if any("string concatenation" in p.lower() for p in ast_result.detected_patterns) or ("push_str" in code and "for " in code):
+            optimized_code = '''// Optimized Version - Time Complexity: O(n), Space Complexity: O(n)
+// Refactored string concatenation with pre-allocated String capacity.
+
+pub fn build_string(items: &[&str]) -> String {
+    let total_len: usize = items.iter().map(|s| s.len()).sum();
+    let mut result = String::with_capacity(total_len);
+    for &item in items {
+        result.push_str(item);
+    }
+    result
+}
+
+fn main() {
+    let items = vec!["a", "b", "c", "d", "e", "f", "g"];
+    println!("{}", build_string(&items));
+}
+'''
+            return OptimizationResult(
+                optimized_code=optimized_code.strip() + "\n",
+                original_complexity="O(n^2)",
+                new_complexity="O(n)",
+                optimization_technique="Rust Pre-allocated String Buffer",
+                explanation="Pre-allocated exact string byte capacity using String::with_capacity to eliminate intermediate heap reallocations."
+            )
+
+        # Check for Fibonacci / Recursion
+        if "fib" in code_lower or "fibonacci" in code_lower:
+            optimized_code = '''// Optimized Version - Time Complexity: O(n), Space Complexity: O(1)
+// Refactored exponential O(2^n) recursion with iterative DP state transition.
+
+pub fn fibonacci(n: usize) -> u64 {
+    if n <= 1 {
+        return n as u64;
+    }
+    let (mut a, mut b) = (0u64, 1u64);
+    for _ in 2..=n {
+        let next = a + b;
+        a = b;
+        b = next;
+    }
+    b
+}
+
+fn main() {
+    println!("Fibonacci(40): {}", fibonacci(40));
+}
+'''
+            return OptimizationResult(
+                optimized_code=optimized_code.strip() + "\n",
+                original_complexity="O(2^n)",
+                new_complexity="O(n)",
+                optimization_technique="Rust Iterative DP State Machine",
+                explanation="Replaced exponential recursion tree with an iterative O(1) space, O(n) time dynamic programming state machine."
+            )
+
+        # Default Two Sum / Pair Search
+        if ast_result.max_loop_depth >= 2 or code.count("for ") >= 2 or "O(n^2)" in ast_result.estimated_time_complexity:
+            optimized_code = '''// Optimized Version - Time Complexity: O(n), Space Complexity: O(n)
+// Refactored using std::collections::HashMap for O(1) complement lookup.
+
+use std::collections::HashMap;
+
+pub fn find_target_pair(arr: &[i32], target: i32) -> Option<(usize, usize)> {
+    let mut map = HashMap::with_capacity(arr.len());
+    for (i, &num) in arr.iter().enumerate() {
+        let complement = target - num;
+        if let Some(&prev_idx) = map.get(&complement) {
+            return Some((prev_idx, i));
+        }
+        map.insert(num, i);
+    }
+    None
+}
+
+fn main() {
+    let numbers = vec![2, 7, 11, 15, 3, 6, 1, 8, 9, 4, 5];
+    if let Some((i, j)) = find_target_pair(&numbers, 9) {
+        println!("Pair found at indices: ({}, {})", i, j);
+    }
+}
+'''
+            return OptimizationResult(
+                optimized_code=optimized_code.strip() + "\n",
+                original_complexity="O(n^2)",
+                new_complexity="O(n)",
+                optimization_technique="Rust HashMap Single Pass Lookup",
+                explanation="Replaced nested double loops with a pre-allocated std::collections::HashMap for O(1) complement lookup."
+            )
+
+        return self.generic_fallback(code, ast_result)
+
     def generic_fallback(self, code: str, ast_result: ASTAnalysisResult) -> OptimizationResult:
         return OptimizationResult(
             optimized_code=code,
@@ -916,4 +1205,5 @@ int main() {
         )
 
 optimizer_engine_service = OptimizationEngineService()
+
 

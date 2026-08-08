@@ -7,8 +7,8 @@ export default function LegalModal({ isOpen, onClose, initialTab = 'terms' }) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content legal-modal-box" onClick={(e) => e.stopPropagation()}>
+    <div className="legal-modal-overlay" onClick={onClose}>
+      <div className="legal-modal-card" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
         <div className="modal-header-row">
