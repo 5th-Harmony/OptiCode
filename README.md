@@ -1,26 +1,47 @@
 # OptiCode Beta — AI-Powered Big-O Code Optimizer & IDE
 
-OptiCode is a full-stack, industry-standard code analysis and optimization platform. It features an interactive web IDE, a 5-stage AST parsing and refactoring pipeline, multi-language support (Python, C++, Java, JavaScript), IP-based rate limiting, database caching (SHA-256 hash lookup), and semantic execution verification.
+OptiCode is a full-stack, industry-standard code analysis and optimization platform. It features an interactive web IDE, a real-time pattern analyzer engine, a 5-stage FastAPI AST parsing and refactoring pipeline, multi-language support (Python, C++, Java, JavaScript, Rust), IP-based rate limiting, database caching (SHA-256 hash lookup), and semantic execution verification.
 
 ---
 
-## ✨ Features
+## ✨ Features & Capabilities
 
-- **5-Stage Optimization Pipeline**:
-  1. **Ingestion & Security Validation**: Sanitizes inputs and checks payload limits.
-  2. **Baseline Execution Sandbox**: Measures baseline runtime in isolated process/Docker sandboxes.
-  3. **AST Parsing & Complexity Detection**: Parses AST structures to identify nested loops and algorithmic bottlenecks ($O(n^2)$, $O(n^3)$, $O(2^n)$).
-  4. **Pattern-Based Refactoring Engine**: Transforms brute-force algorithms into optimal data structures ($O(n \log n)$, $O(n)$, $O(\sqrt{n})$).
-  5. **Semantic Verification & Timing**: Verifies output equality and measures speedup factor.
-- **SHA-256 Code Hash Cache**: Instant response for previously analyzed code patterns ($O(1)$ lookup).
+- **Real-Time Code Analyzer Engine**:
+  - Inspects the actual source code of **any user-created or uploaded file** in real time.
+  - Detects loop nesting depth ($O(n^2)$, $O(n^3)$), unguarded recursion ($O(2^n)$), list searches inside loops (`.includes()`, `in list`), string concatenation in loops, and manual swap sorts.
+  - Outputs targeted refactoring strategies for your open source code.
+- **"Maximum Optimization Reached" Alert**:
+  - Automatically detects when code is already optimally written ($O(n)$ or $O(1)$) and displays a sleek glassmorphic notification banner:  
+    `OPTIMAL | Maximum Optimization Reached | This code is already written using optimal data structures and minimal complexity.`
+- **12-Program Benchmark Suite**:
+  - 12 distinct multi-function programs across 5 languages (JavaScript, Python, C++, Java, Rust).
+  - Each file features isolated per-file optimization state mapping (`fileOptimizations`).
+- **Fixed Glowing Red "OPTIMIZE CODE" Button**:
+  - Positioned beside the `SOURCE CODE` label in the editor pane header.
+  - Uniform fixed dimensions (`height: 26px`), glowing crimson red styling, **zero emojis**, and excluded from the Dashboard view.
+- **Synchronized Scroll & 60px Bottom Clearance**:
+  - Pixel-perfect line height alignment (`--line-h: 21px`).
+  - `--editor-pad-bottom: 60px` ensures scrolling down fully leaves comfortable clearance above the terminal drawer, keeping the last lines of code 100% visible.
+- **Redesigned Settings Modal**:
+  - Glassmorphic card design (`backdrop-filter: blur(20px)`), AI model selection dropdown, font size range slider with live badge (`14px`), indentation tab pills (`2` / `4` Spaces), and emerald toggle switches.
 - **IP-Based Sliding Window Rate Limiting**:
-  - `POST /api/v1/auth/login`: 5 attempts / 15 min per IP with automatic 15-min lockout.
+  - `POST /api/v1/auth/login`: 5 attempts / 15 min per IP with automatic 15-minute lockout timer.
   - `POST /api/v1/optimize`: 30 requests / min per IP.
-- **Modern IDE Frontend**:
-  - Interactive code editor with sample problem presets.
-  - Real-time Big-O analysis badge, time/space complexity cards, and speedup metrics.
-  - Industry-standard Auth Modal with password strength meter, lockout countdown timer, and prominent Terms & Privacy consent controls.
-- **Multi-Language Support**: Full AST parsing and execution for Python, C++, Java, and client fallback for JavaScript.
+- **SHA-256 Code Hash Cache**: Instant response for previously analyzed code patterns ($O(1)$ lookup).
+
+---
+
+## 🌐 Localhost & Network Access Setup
+
+The frontend dev server is configured with `host: true` (`0.0.0.0`), granting full local network access to viewers across devices.
+
+| Interface | URL | Description |
+|-----------|-----|-------------|
+| **Frontend IDE** | [http://localhost:3000](http://localhost:3000) | Vite Web Application |
+| **Network IDE** | `http://<your-local-ip>:3000` | Local Network Access for Viewers |
+| **FastAPI Backend** | [http://localhost:8000](http://localhost:8000) | REST API Service |
+| **Interactive API Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | Swagger UI Documentation |
+| **Health Endpoint** | [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health) | API Status Check |
 
 ---
 
@@ -30,7 +51,7 @@ OptiCode is a full-stack, industry-standard code analysis and optimization platf
 OptiCode/
 ├── app/                        # FastAPI Backend Service
 │   ├── api/                    # API Endpoints (routes.py, schemas.py)
-│   ├── services/               # Core Logic
+│   ├── services/               # Core Logic Services
 │   │   ├── ast_parser.py       # AST Syntax Analyzer
 │   │   ├── optimizer.py        # Pattern Refactoring Engine
 │   │   ├── sandbox.py          # Isolated Code Execution Sandbox
@@ -42,9 +63,10 @@ OptiCode/
 │   ├── config.py               # Application Settings
 │   └── main.py                 # FastAPI Application Entry Point
 ├── src/                        # React + Vite Frontend App
-│   ├── components/             # React Components (AuthModal, Editor, Header, etc.)
-│   ├── utils/                  # Frontend Utilities (optimizerEngine.js)
-│   ├── App.jsx                 # Main Application Layout
+│   ├── components/             # React Components (CodeEditor, Navbar, SettingsModal, UserDashboard, AuthModal)
+│   ├── utils/                  # Frontend Intelligence Engine (optimizerEngine.js)
+│   ├── data/                   # Default Benchmark Suite (defaultFiles.js)
+│   ├── App.jsx                 # Main Application Layout & State Map
 │   └── app-custom.css          # Design System & Component Styles
 ├── Dockerfile                  # Production API Docker Container
 ├── Dockerfile.sandbox          # Isolated Sandbox Execution Image
@@ -52,17 +74,16 @@ OptiCode/
 ├── package.json                # Frontend Dependencies & Scripts
 ├── requirements.txt            # Python Backend Dependencies
 ├── test_pipeline.py            # End-to-End Pipeline Audit Script
-└── vite.config.js              # Vite Build & Development Server Config
+└── vite.config.js              # Vite Build & Network Host Config
 ```
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## 🚀 Quick Start Guide
 
 ### 1. Prerequisites
 - **Node.js**: v18+ & `npm`
 - **Python**: v3.10+
-- **C++ Compiler (g++)** & **Java JDK (17+)** (Optional, for full C++/Java baseline execution)
 
 ### 2. Install Dependencies
 
@@ -74,49 +95,35 @@ npm install
 pip install -r requirements.txt
 ```
 
-### 3. Run Development Servers
+### 3. Start Development Servers
 
-**Backend (FastAPI on Port 8000)**:
+**Start FastAPI Backend (Port 8000)**:
 ```bash
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-- API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
-- Health Endpoint: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 
-**Frontend (Vite on Port 3000)**:
+**Start Vite Frontend (Port 3000, Network Host Enabled)**:
 ```bash
 npm run dev
 ```
-- Open App: [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## 🧪 Testing & Verification
+## 🧪 Testing & Quality Assurance
 
-Run the end-to-end QA audit script to test all 5 pipeline stages:
-
+Run the production build check:
 ```bash
-python test_pipeline.py
+npm run build
 ```
 
-To run the comprehensive multi-language test suite:
+Run the backend test suite:
 ```bash
-python scratch/test_all_languages.py
-```
-
----
-
-## 🐳 Docker Deployment
-
-To build and run the entire stack using Docker Compose:
-
-```bash
-docker-compose up --build -d
+python -m pytest
 ```
 
 ---
 
-## 🛡️ Security & Rate Limiting Specifications
+## 🛡️ Security & Compliance Specifications
 
 - **Rate Limit Headers**: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After`.
 - **Lockout Policy**: Exceeding 5 failed login attempts within 15 minutes triggers a 900-second IP lockout.
@@ -124,6 +131,6 @@ docker-compose up --build -d
 
 ---
 
-## 📜 License & Compliance
+## 📜 License
 
 Distributed under the MIT License. Terms of Use and Privacy Policy guidelines embedded within client onboarding interfaces.
