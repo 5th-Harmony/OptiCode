@@ -7,36 +7,60 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build-and-test:
+  validate-and-build:
+    name: Frontend & Backend Health Audit
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        node-version: [20.x]
+        python-version: ['3.11']
+
     steps:
-      - name: Checkout Source Code
+      # Step 1: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Set up Node.js 20
+      # Step 2: Set Up Node.js Environment with Cache
+      - name: Set Up Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
+      # Step 3: Install Frontend Dependencies
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      # Step 4: Validate Frontend Production Build
+      - name: Build Frontend Application (Vite)
+        run: npm run build
+
+      # Step 5: Validate Agent Pattern Detection Logic
+      - name: Run OptiCode Agent Logic Tests
+        run: node test_agent_logic.js
+
+      # Step 6: Set Up Python Runtime with Cache
+      - name: Set Up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      # Step 7: Install Backend Dependencies
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install fastapi uvicorn pydantic docker jinja2 httpx pytest
+          pip install -r requirements.txt
 
-      - name: Install Node.js Dependencies
-        run: |
-          npm install
+      # Step 8: Run Backend Unit and Integration Tests (pytest)
+      - name: Run Backend Pytest Suite
+        run: python -m pytest --verbose
 
-      - name: Run Database & Integration Tests
-        run: |
-          python test_db_integration.py
+      # Step 9: Run Multi-Language Optimization Benchmark Tests
+      - name: Run Multi-Language Optimization Engine Tests
+        run: python test_multi_language_programs.py
 
-      - name: Build Frontend Web App
-        run: |
-          npm run build
+      # Step 10: Run Database Schema & CRUD Integration Tests
+      - name: Run SQLite Database Integration Tests
+        run: python test_db_integration.py
