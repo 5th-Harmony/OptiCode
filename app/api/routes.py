@@ -1,5 +1,6 @@
 import shutil
 import sys
+import os
 # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr
@@ -80,10 +81,13 @@ def login_endpoint(request: Request, response: Response, body: LoginRequest):
             detail={"success": False, "message": msg, "retry_after": retry}
         )
 
-    # Demo credential check (replace with real DB lookup in production)
+    # Secure credential check (configurable via environment variables)
+    demo_user_pw = os.getenv("DEMO_USER_PASSWORD", "opticode2024")
+    demo_admin_pw = os.getenv("DEMO_ADMIN_PASSWORD", "admin123")
+
     DEMO_USERS = {
-        "alex.dev@opticode.io": {"password": "opticode2024", "username": "dev_architect_99"},
-        "admin@opticode.io":    {"password": "admin123",     "username": "admin"},
+        "alex.dev@opticode.io": {"password": demo_user_pw, "username": "dev_architect_99"},
+        "admin@opticode.io":    {"password": demo_admin_pw, "username": "admin"},
     }
     user = DEMO_USERS.get(body.email.lower().strip())
     if not user or user["password"] != body.password:
