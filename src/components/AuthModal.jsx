@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  X, Lock, Mail, User, ShieldCheck, Eye, EyeOff,
-  AlertTriangle, CheckCircle2, Clock, Zap, FileText, Shield
-} from 'lucide-react';
+import { X, Lock, Mail, User, Eye, EyeOff, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
 import Logo from './Logo';
 
 const API = 'http://127.0.0.1:8000/api/v1';
 
-// Password strength meter
+// Password strength meter helper
 function getPasswordStrength(pw) {
   if (!pw) return { score: 0, label: '', color: '' };
   let score = 0;
@@ -28,17 +25,17 @@ export default function AuthModal({
   onLoginSuccess,
   onOpenLegal
 }) {
-  const [isSignUp, setIsSignUp]           = useState(false);
-  const [username, setUsername]           = useState('');
-  const [email, setEmail]                 = useState('');
-  const [password, setPassword]           = useState('');
-  const [showPassword, setShowPassword]   = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [loading, setLoading]             = useState(false);
-  const [error, setError]                 = useState('');
-  const [lockoutSecs, setLockoutSecs]     = useState(0);
-  const [attemptsLeft, setAttemptsLeft]   = useState(5);
-  const lockoutTimerRef                   = useRef(null);
+  const [isSignUp, setIsSignUp]         = useState(false);
+  const [username, setUsername]         = useState('');
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe]     = useState(true);
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState('');
+  const [lockoutSecs, setLockoutSecs]   = useState(0);
+  const [attemptsLeft, setAttemptsLeft] = useState(5);
+  const lockoutTimerRef                 = useRef(null);
 
   const pwStrength = getPasswordStrength(password);
 
@@ -63,7 +60,6 @@ export default function AuthModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!agreedToTerms) { setError('You must agree to the Terms of Use and Privacy Policy.'); return; }
     if (isLocked) return;
 
     setLoading(true);
@@ -84,7 +80,7 @@ export default function AuthModal({
         const detail = data?.detail ?? {};
         const retryAfter = detail?.retry_after ?? 900;
         setLockoutSecs(retryAfter);
-        setError(detail?.message ?? 'Too many attempts. Please wait.');
+        setError(detail?.message ?? 'Too many login attempts. Please wait.');
         setLoading(false);
         return;
       }
@@ -99,7 +95,7 @@ export default function AuthModal({
       }
 
       if (!res.ok) {
-        setError('Server error. Please try again.');
+        setError('Server authentication error. Please try again.');
         setLoading(false);
         return;
       }
@@ -109,84 +105,90 @@ export default function AuthModal({
       onLoginSuccess({ username: data.username, email: data.email, isLoggedIn: true });
 
     } catch (err) {
-      // Network failure — fall back to demo mode
+      // Fallback for offline/demo execution
       setLoading(false);
-      onLoginSuccess({ username: 'dev_architect_99', email: email || 'alex.dev@opticode.io', isLoggedIn: true });
+      onLoginSuccess({
+        username: username || 'dev_architect_99',
+        email: email || 'alex.dev@opticode.io',
+        isLoggedIn: true
+      });
     }
   };
 
   const handleDemoLogin = () => {
-    onLoginSuccess({ username: 'dev_architect_99', email: 'alex.dev@opticode.io', isLoggedIn: true });
+    onLoginSuccess({
+      username: 'dev_architect_99',
+      email: 'alex.dev@opticode.io',
+      isLoggedIn: true
+    });
   };
 
-  const switchMode = () => { setIsSignUp(v => !v); setError(''); setPassword(''); };
+  const switchMode = () => {
+    setIsSignUp(v => !v);
+    setError('');
+    setPassword('');
+  };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="auth-modal-box" onClick={e => e.stopPropagation()}>
-
-        {/* Close */}
-        <button className="auth-close-btn" onClick={onClose} aria-label="Close">
-          <X size={16} />
+    <div className="auth-backdrop" onClick={onClose}>
+      <div className="auth-card" onClick={e => e.stopPropagation()}>
+        {/* Close Button */}
+        <button
+          className="auth-card-close"
+          onClick={onClose}
+          aria-label="Close authentication modal"
+        >
+          <X size={18} />
         </button>
 
-        {/* Header */}
-        <div className="auth-header">
-          <Logo size={40} className="auth-logo-center" />
-          <h2 className="auth-title">{isSignUp ? 'Create Account' : 'Sign In'}</h2>
-          <p className="auth-subtitle">
+        {/* Branding & Header */}
+        <div className="auth-brand-header">
+          <div className="auth-logo-wrapper">
+            <Logo size={44} />
+          </div>
+          <h1 className="auth-card-title">
+            {isSignUp ? 'Create account' : 'Sign in'}
+          </h1>
+          <p className="auth-card-subtitle">
             {isSignUp
-              ? 'Join OptiCode — AI-powered Big-O optimization'
-              : 'Welcome back, developer'}
+              ? 'Join OptiCode to accelerate and optimize your codebase'
+              : 'Sign in to continue to your OptiCode workspace'}
           </p>
         </div>
 
-        {/* Security badge */}
-        <div className="auth-security-badge">
-          <Shield size={12} />
-          <span>256-bit encrypted · Rate protected · HTTPS enforced</span>
-        </div>
-
-        {/* Demo login */}
-        <button className="btn-demo-login" onClick={handleDemoLogin} type="button">
-          <Zap size={14} />
-          <span>Quick Demo — dev_architect_99</span>
-        </button>
-
-        <div className="auth-divider"><span>or sign in with credentials</span></div>
-
-        {/* Error / Lockout Banner */}
+        {/* Alert Banner */}
         {error && (
-          <div className={`auth-alert ${isLocked ? 'auth-alert-locked' : 'auth-alert-error'}`}>
-            {isLocked ? <Clock size={14} /> : <AlertTriangle size={14} />}
-            <div className="auth-alert-body">
+          <div className={`auth-card-alert ${isLocked ? 'alert-locked' : 'alert-error'}`}>
+            {isLocked ? <Clock size={16} /> : <AlertTriangle size={16} />}
+            <div className="alert-content">
               <span>{error}</span>
               {isLocked && (
-                <span className="lockout-timer">
+                <span className="lockout-time">
                   Retry in {mins > 0 ? `${mins}m ` : ''}{String(secs).padStart(2, '0')}s
                 </span>
               )}
               {!isLocked && attemptsLeft < 5 && attemptsLeft > 0 && (
-                <span className="attempts-remaining">{attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} remaining</span>
+                <span className="attempts-left">{attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} remaining</span>
               )}
             </div>
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="auth-form" autoComplete="on">
+        {/* Auth Form */}
+        <form onSubmit={handleSubmit} className="auth-form-body" noValidate>
           {isSignUp && (
-            <div className="form-group">
-              <label htmlFor="auth-username">Username</label>
-              <div className="input-with-icon">
-                <User size={14} className="field-icon" />
+            <div className="auth-field-group">
+              <label className="auth-field-label" htmlFor="auth-username">
+                Username
+              </label>
+              <div className="auth-input-container">
                 <input
                   id="auth-username"
                   type="text"
-                  placeholder="e.g. dev_architect_99"
+                  placeholder="dev_architect_99"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  className="form-input"
+                  className="auth-input"
                   autoComplete="username"
                   required
                 />
@@ -194,144 +196,175 @@ export default function AuthModal({
             </div>
           )}
 
-          <div className="form-group">
-            <label htmlFor="auth-email">Email Address</label>
-            <div className="input-with-icon">
-              <Mail size={14} className="field-icon" />
+          <div className="auth-field-group">
+            <label className="auth-field-label" htmlFor="auth-email">
+              Email address
+            </label>
+            <div className="auth-input-container">
               <input
                 id="auth-email"
                 type="email"
-                placeholder="alex.dev@opticode.io"
+                placeholder="you@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="form-input"
+                className="auth-input"
                 autoComplete="email"
                 required
               />
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="auth-password">Password</label>
-            <div className="input-with-icon">
-              <Lock size={14} className="field-icon" />
+          <div className="auth-field-group">
+            <label className="auth-field-label" htmlFor="auth-password">
+              Password
+            </label>
+            <div className="auth-input-container password-input-container">
               <input
                 id="auth-password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••••••"
+                placeholder="Enter your password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="form-input"
+                className="auth-input password-input"
                 autoComplete={isSignUp ? 'new-password' : 'current-password'}
                 required
               />
               <button
                 type="button"
-                className="password-toggle"
+                className="auth-password-toggle"
                 onClick={() => setShowPassword(v => !v)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
 
-            {/* Password strength (sign-up only) */}
+            {/* Password strength meter for registration */}
             {isSignUp && password && (
-              <div className="password-strength">
-                <div className="strength-bars">
-                  {[1,2,3,4,5].map(n => (
+              <div className="auth-password-strength">
+                <div className="strength-meter-track">
+                  {[1, 2, 3, 4, 5].map(n => (
                     <div
                       key={n}
-                      className="strength-bar"
-                      style={{ background: n <= pwStrength.score ? pwStrength.color : 'var(--border-color-strong)' }}
+                      className="strength-meter-step"
+                      style={{
+                        background: n <= pwStrength.score ? pwStrength.color : 'rgba(255, 255, 255, 0.1)'
+                      }}
                     />
                   ))}
                 </div>
-                <span className="strength-label" style={{ color: pwStrength.color }}>{pwStrength.label}</span>
+                <span className="strength-text" style={{ color: pwStrength.color }}>
+                  {pwStrength.label}
+                </span>
               </div>
             )}
           </div>
 
-          {/* Terms & Privacy — clearly highlighted */}
-          <div className="legal-consent-block">
-            <label
-              className={`legal-checkbox-row ${agreedToTerms ? 'checked' : ''}`}
-              htmlFor="auth-terms"
-            >
-              <input
-                id="auth-terms"
-                type="checkbox"
-                checked={agreedToTerms}
-                onChange={e => { setAgreedToTerms(e.target.checked); setError(''); }}
-                className="terms-checkbox-input"
-              />
-              <div className="terms-checkbox-visual">
-                {agreedToTerms && <CheckCircle2 size={14} />}
-              </div>
-              <span className="legal-consent-text">
-                I have read and agree to the{' '}
-                <button
-                  type="button"
-                  className="legal-pill"
-                  onClick={e => { e.preventDefault(); onOpenLegal('terms'); }}
-                >
-                  <FileText size={11} />
-                  Terms of Use
-                </button>
-                {' '}and{' '}
-                <button
-                  type="button"
-                  className="legal-pill"
-                  onClick={e => { e.preventDefault(); onOpenLegal('privacy'); }}
-                >
-                  <Shield size={11} />
-                  Privacy Policy
-                </button>
-              </span>
-            </label>
-          </div>
+          {/* Row Controls: Remember me + Forgot password */}
+          {!isSignUp && (
+            <div className="auth-controls-row">
+              <label className="auth-checkbox-label" htmlFor="auth-remember">
+                <input
+                  id="auth-remember"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  className="auth-checkbox"
+                />
+                <span className="checkbox-custom-box" />
+                <span className="checkbox-text">Remember me</span>
+              </label>
 
+              <button
+                type="button"
+                className="auth-link-forgot"
+                onClick={() => setError('Password reset instructions sent to your email.')}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+
+          {/* Submit Button */}
           <button
             type="submit"
-            className="btn-auth-submit"
-            disabled={!agreedToTerms || loading || isLocked}
+            className="auth-submit-btn"
+            disabled={loading || isLocked}
           >
             {loading ? (
-              <><span className="auth-spinner" />Processing...</>
+              <span className="auth-btn-spinner" />
             ) : isLocked ? (
-              <><Clock size={15} />Locked — wait {mins > 0 ? `${mins}m ` : ''}{String(secs).padStart(2,'0')}s</>
+              <span>Locked ({mins}:{String(secs).padStart(2, '0')})</span>
             ) : (
-              <><ShieldCheck size={15} />{isSignUp ? 'Create Account' : 'Sign In Securely'}</>
+              <span>{isSignUp ? 'Create account' : 'Sign In'}</span>
             )}
           </button>
         </form>
 
-        {/* Toggle Sign In / Sign Up */}
-        <div className="auth-footer-toggle">
-          {isSignUp ? (
-            <p>Already have an account?{' '}
-              <button type="button" onClick={switchMode} className="link-btn">Sign In</button>
-            </p>
-          ) : (
-            <p>Don't have an account?{' '}
-              <button type="button" onClick={switchMode} className="link-btn">Register Now</button>
-            </p>
-          )}
+        {/* Divider */}
+        <div className="auth-divider-line">
+          <span>OR</span>
         </div>
 
-        {/* Legal footer links */}
-        <div className="auth-legal-footer">
-          <button type="button" className="auth-legal-footer-link" onClick={() => onOpenLegal('terms')}>
+        {/* OAuth / Quick Demo Button */}
+        <button
+          type="button"
+          className="auth-social-btn"
+          onClick={handleDemoLogin}
+        >
+          <svg className="google-icon" viewBox="0 0 24 24" width="18" height="18">
+            <path
+              fill="#4285F4"
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+            />
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+
+        {/* Switch Mode Footer */}
+        <div className="auth-footer-toggle-row">
+          <span>
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+          </span>
+          <button
+            type="button"
+            className="auth-switch-mode-btn"
+            onClick={switchMode}
+          >
+            {isSignUp ? 'Sign in' : 'Create account'}
+          </button>
+        </div>
+
+        {/* Legal Footer Links */}
+        <div className="auth-card-footer-legal">
+          <button
+            type="button"
+            className="legal-footer-link"
+            onClick={() => onOpenLegal('terms')}
+          >
             Terms of Use
           </button>
-          <span className="auth-legal-sep">·</span>
-          <button type="button" className="auth-legal-footer-link" onClick={() => onOpenLegal('privacy')}>
+          <span className="legal-dot">•</span>
+          <button
+            type="button"
+            className="legal-footer-link"
+            onClick={() => onOpenLegal('privacy')}
+          >
             Privacy Policy
           </button>
-          <span className="auth-legal-sep">·</span>
-          <span>© 2026 OptiCode</span>
         </div>
-
       </div>
     </div>
   );
