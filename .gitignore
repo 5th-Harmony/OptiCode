@@ -37,8 +37,10 @@ dist-ssr
 *.sln
 *.sw?
 
-# Python Cache & Local Databases
+# Python Virtualenvs & Local Storage
 __pycache__/
 *.pyc
 *.db
+.venv/
+.tempmediaStorage/
 

@@ -6,8 +6,16 @@ import tempfile
 import subprocess
 import shutil
 from typing import Tuple
-import docker
-from docker.errors import DockerException, ImageNotFound, APIError
+try:
+    import docker
+    from docker.errors import DockerException, ImageNotFound, APIError
+    HAS_DOCKER_LIB = True
+except ImportError:
+    docker = None
+    DockerException = Exception
+    ImageNotFound = Exception
+    APIError = Exception
+    HAS_DOCKER_LIB = False
 
 from app.config import settings
 from app.api.schemas import SandboxExecutionResult, SupportedLanguage
@@ -23,8 +31,12 @@ class ExecutionSandboxService:
     """
     def __init__(self):
         try:
-            self.docker_client = docker.from_env()
-            self.docker_available = True
+            if HAS_DOCKER_LIB:
+                self.docker_client = docker.from_env()
+                self.docker_available = True
+            else:
+                self.docker_client = None
+                self.docker_available = False
             logger.info("Docker SDK initialized successfully.")
         except Exception as e:
             self.docker_client = None

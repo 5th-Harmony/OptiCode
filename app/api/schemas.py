@@ -1,6 +1,10 @@
 from enum import Enum
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
+try:
+    from pydantic import field_validator
+except ImportError:
+    from pydantic import validator as field_validator
 
 class SupportedLanguage(str, Enum):
     PYTHON = "python"
@@ -143,7 +147,7 @@ class BenchmarkResult(BaseModel):
     details: str
 
 class BatchOptimizationRequest(BaseModel):
-    items: List[CodeOptimizationRequest] = Field(..., min_length=1, max_length=10, description="List of code snippets to optimize (1-10)")
+    items: List[CodeOptimizationRequest] = Field(..., min_items=1, max_items=10, description="List of code snippets to optimize (1-10)")
 
 class BatchOptimizationResponse(BaseModel):
     total_processed: int

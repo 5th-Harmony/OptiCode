@@ -124,27 +124,27 @@ def health_check():
     status_code=status.HTTP_200_OK,
     tags=["Optimization Pipeline"]
 )
-def optimize_code_endpoint(http_request: Request, response: Response, request: CodeOptimizationRequest):
+def optimize_code_endpoint(
+    request: CodeOptimizationRequest,
+    response: Optional[Response] = None,
+    http_request: Optional[Request] = None
+):
     """
-    5-Stage Big-O Optimization Pipeline with Database Caching:
-    1. Check OptimizationCache Table (Fast Cache Hit Lookup)
-    2. Ingestion & Security Validation
-    3. Execution Sandbox (Baseline Timing & Error Capture)
-    4. AST Structural Parsing & Bottleneck Detection
-    5. Optimization Engine Pattern Refactoring & Persistence
+    Main Code Optimization Endpoint (Stage 1-5 Pipeline).
     """
-    # IP Rate Limiting — 30 requests/min per client
-    client_ip = http_request.client.host if http_request.client else "unknown"
-    allowed, rl_info = rate_limiter.is_allowed(client_ip, "optimize", **POLICY_OPTIMIZE)
-    response.headers["X-RateLimit-Limit"] = str(rl_info["X-RateLimit-Limit"])
-    response.headers["X-RateLimit-Remaining"] = str(rl_info["X-RateLimit-Remaining"])
-    response.headers["X-RateLimit-Reset"] = str(rl_info["X-RateLimit-Reset"])
-    if not allowed:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Rate limit exceeded. Max 30 optimization requests per minute. Retry in {rl_info['Retry-After']}s."
-        )
+    if response and http_request:
+        client_ip = http_request.client.host if http_request.client else "unknown"
+        allowed, rl_info = rate_limiter.is_allowed(client_ip, "optimize", **POLICY_OPTIMIZE)
+        response.headers["X-RateLimit-Limit"] = str(rl_info["X-RateLimit-Limit"])
+        response.headers["X-RateLimit-Remaining"] = str(rl_info["X-RateLimit-Remaining"])
+        response.headers["X-RateLimit-Reset"] = str(rl_info["X-RateLimit-Reset"])
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded. Max 30 optimization requests per minute. Retry in {rl_info['Retry-After']}s."
+            )
 
+    client_ip = http_request.client.host if (http_request and http_request.client) else "local"
     logger.info(f"Received optimization request for language: {request.language} from IP={client_ip}")
 
     try:

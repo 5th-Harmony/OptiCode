@@ -11,7 +11,7 @@ import SettingsModal from './components/SettingsModal';
 import LegalModal from './components/LegalModal';
 
 import { INITIAL_FILES, MOCK_USER_PROFILE } from './data/defaultFiles';
-import { optimizeCode, optimizeCodeWithBackend, checkBackendHealth } from './utils/optimizerEngine';
+import { optimizeCodeWithBackend } from './utils/optimizerEngine';
 
 export default function App() {
   // Theme state ('dark' or 'light')
@@ -19,21 +19,7 @@ export default function App() {
     return localStorage.getItem('opticode_theme') || 'dark';
   });
 
-  // Backend status indicator
-  const [backendOnline, setBackendOnline] = useState(false);
-
-  useEffect(() => {
-    const pollHealth = async () => {
-      const status = await checkBackendHealth();
-      setBackendOnline(status.online);
-    };
-    pollHealth();
-    const timer = setInterval(pollHealth, 10000);
-    return () => clearInterval(timer);
-  }, []);
-
   // User Authentication state
-
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('opticode_user');
     return saved ? JSON.parse(saved) : { ...MOCK_USER_PROFILE, isLoggedIn: true };
@@ -45,18 +31,66 @@ export default function App() {
   // Sidebar Active Panel ('explorer' | 'search' | null)
   const [activePanel, setActivePanel] = useState('explorer');
 
+  // ── localStorage version guard ──────────────────────────────────────────
+  // If the stored files use the old numeric IDs ('1','2'…) instead of the
+  // new semantic IDs ('js-1','py-1'…), wipe stale data so fresh defaults load.
+  useEffect(() => {
+    const storedFiles = localStorage.getItem('opticode_files');
+    if (storedFiles) {
+      try {
+        const parsed = JSON.parse(storedFiles);
+        const hasOldIds = parsed.some(f => /^\d+$/.test(f.id));
+        if (hasOldIds) {
+          localStorage.removeItem('opticode_files');
+          localStorage.removeItem('opticode_file_optimizations');
+          // Force page reload to pick up the clean INITIAL_FILES
+          window.location.reload();
+        }
+      } catch (_) {
+        localStorage.removeItem('opticode_files');
+        localStorage.removeItem('opticode_file_optimizations');
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Files Virtual Workspace State
   const [files, setFiles] = useState(() => {
     const saved = localStorage.getItem('opticode_files');
-    return saved ? JSON.parse(saved) : INITIAL_FILES;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Only use stored files if they have semantic IDs
+        if (!parsed.some(f => /^\d+$/.test(f.id))) return parsed;
+      } catch (_) {}
+    }
+    return INITIAL_FILES;
   });
 
-  const [activeFileId, setActiveFileId] = useState(files[0]?.id || '1');
+  const [activeFileId, setActiveFileId] = useState(() => {
+    const saved = localStorage.getItem('opticode_files');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (!parsed.some(f => /^\d+$/.test(f.id))) return parsed[0]?.id || 'js-1';
+      } catch (_) {}
+    }
+    return INITIAL_FILES[0]?.id || 'js-1';
+  });
 
-  // Optimization & Terminal Drawer State
-  const [optimizedResult, setOptimizedResult] = useState(null);
-  const [isOptimizing, setIsOptimizing] = useState(false);
+  // PER-FILE OPTIMIZATION STATE MAP (keyed by fileId — isolated per file)
+  const [fileOptimizations, setFileOptimizations] = useState(() => {
+    const saved = localStorage.getItem('opticode_file_optimizations');
+    if (!saved) return {};
+    try { return JSON.parse(saved); } catch (_) { return {}; }
+  });
+
+  // Per-file isOptimizing: tracks WHICH fileId is currently being optimized.
+  // null = nothing optimizing. Loading spinner only shows on the active file
+  // being processed — switching files mid-optimization shows correct state.
+  const [optimizingFileId, setOptimizingFileId] = useState(null);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [maxOptToast, setMaxOptToast] = useState(false); // 'Maximum optimization reached' toast
 
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -84,12 +118,18 @@ export default function App() {
     localStorage.setItem('opticode_files', JSON.stringify(files));
   }, [files]);
 
+  // Persist per-file optimizations map
+  useEffect(() => {
+    localStorage.setItem('opticode_file_optimizations', JSON.stringify(fileOptimizations));
+  }, [fileOptimizations]);
+
   // Persist user profile
   useEffect(() => {
     localStorage.setItem('opticode_user', JSON.stringify(user));
   }, [user]);
 
   const activeFile = files.find(f => f.id === activeFileId) || files[0];
+  const activeOptimizationResult = fileOptimizations[activeFileId] || null;
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
@@ -165,18 +205,48 @@ export default function App() {
     if (activeFileId === fileId) {
       setActiveFileId(remaining[0].id);
     }
+    // Remove optimization entry for deleted file
+    setFileOptimizations(prev => {
+      const updated = { ...prev };
+      delete updated[fileId];
+      return updated;
+    });
   };
 
-  // Trigger Code Optimization
+  // Trigger Code Optimization for Active File
   const handleOptimize = async () => {
-    if (!activeFile || isOptimizing) return;
-    setIsOptimizing(true);
-    setOptimizedResult(null);
+    // Snapshot the file we're optimizing at the moment the button is clicked.
+    // If the user switches files mid-optimization, we still store the result
+    // under the correct original fileId, not the newly selected file.
+    const targetFile = activeFile;
+    if (!targetFile || optimizingFileId !== null) return;
+
+    setOptimizingFileId(targetFile.id);
 
     try {
-      const result = await optimizeCodeWithBackend(activeFile.content, activeFile.language);
-      setOptimizedResult(result);
-      setIsTerminalOpen(true); // Automatically slide up terminal to reveal complexity analysis!
+      const result = await optimizeCodeWithBackend(
+        targetFile.content,
+        targetFile.language,
+        targetFile.name
+      );
+
+      setOptimizingFileId(null);
+
+      // Handle already-optimal case
+      if (result.alreadyOptimal) {
+        setMaxOptToast(true);
+        setTimeout(() => setMaxOptToast(false), 4000);
+        return;
+      }
+
+      // Store result keyed by the FILE THAT WAS OPTIMIZED (not current active file)
+      setFileOptimizations(prev => ({
+        ...prev,
+        [targetFile.id]: result
+      }));
+
+      setOptimizingFileId(null);
+      setIsTerminalOpen(true); // Open terminal to show complexity analysis
 
       // Update User Stats if logged in
       if (user.isLoggedIn) {
@@ -190,17 +260,15 @@ export default function App() {
         }));
       }
     } catch (err) {
-      console.error('Optimization error:', err);
-    } finally {
-      setIsOptimizing(false);
+      console.error('[OptiCode] Optimization failed:', err);
+      setOptimizingFileId(null);
     }
   };
 
-
-  // Apply Optimized Code back to Source File
+  // Apply Optimized Code back to Active Source File
   const handleApplyOptimization = () => {
-    if (optimizedResult && activeFile) {
-      handleUpdateFileContent(activeFile.id, optimizedResult.optimizedCode);
+    if (activeOptimizationResult && activeFile) {
+      handleUpdateFileContent(activeFile.id, activeOptimizationResult.optimizedCode);
     }
   };
 
@@ -217,9 +285,21 @@ export default function App() {
         viewMode={viewMode}
         setViewMode={setViewMode}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
-        backendOnline={backendOnline}
+        onOptimize={handleOptimize}
+        isOptimizing={optimizingFileId === activeFileId}
       />
 
+      {/* Maximum Optimization Reached Toast Banner Popup */}
+      {maxOptToast && (
+        <div className="max-opt-toast" role="alert">
+          <div className="toast-content">
+            <span className="toast-badge">OPTIMAL</span>
+            <span className="toast-title">Maximum Optimization Reached</span>
+            <span className="toast-desc">This code is already written using optimal data structures and minimal complexity.</span>
+          </div>
+          <button className="toast-close-btn" onClick={() => setMaxOptToast(false)}>✕</button>
+        </div>
+      )}
 
       {/* Main Workspace Body */}
       <div className="main-layout">
@@ -265,10 +345,9 @@ export default function App() {
               activeFile={activeFile}
               onUpdateContent={handleUpdateFileContent}
               onOptimize={handleOptimize}
-              optimizedResult={optimizedResult}
-              isOptimizing={isOptimizing}
+              optimizedResult={activeOptimizationResult}
+              isOptimizing={optimizingFileId === activeFileId}
               onApplyOptimization={handleApplyOptimization}
-              isTerminalOpen={isTerminalOpen}
             />
           ) : (
             <UserDashboard
@@ -287,7 +366,7 @@ export default function App() {
             <TerminalPanel
               isOpen={isTerminalOpen}
               onToggle={() => setIsTerminalOpen(!isTerminalOpen)}
-              optimizedResult={optimizedResult}
+              optimizedResult={activeOptimizationResult}
               activeFile={activeFile}
             />
           )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   User, 
   Zap, 
@@ -22,7 +22,8 @@ import {
   ChevronRight,
   BarChart3,
   CheckCircle2,
-  Info
+  Info,
+  Upload
 } from 'lucide-react';
 
 const PRESET_AVATARS = [
@@ -34,11 +35,22 @@ const PRESET_AVATARS = [
 ];
 
 export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogout }) {
+  // File Input Ref for native device image upload
+  const fileInputRef = useRef(null);
+
   // Account Form State
   const [username, setUsername] = useState(user.username || 'dev_architect_99');
   const [email, setEmail] = useState(user.email || 'alex.dev@opticode.io');
   const [role, setRole] = useState(user.role || 'Senior AI & Systems Architect');
   const [isSaved, setIsSaved] = useState(false);
+
+  // Keep local form state in sync whenever the user prop changes
+  // (e.g. after logout → re-login, or after another component calls onUpdateUser)
+  useEffect(() => {
+    setUsername(user.username || '');
+    setEmail(user.email || '');
+    setRole(user.role || '');
+  }, [user.username, user.email, user.role]);
 
   // Modals & Active Views
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -46,7 +58,7 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
   const [isFullReportOpen, setIsFullReportOpen] = useState(false);
   const [isHistoryLogOpen, setIsHistoryLogOpen] = useState(false);
   const [selectedInsight, setSelectedInsight] = useState(null);
-  const [efficiencyPeriod, setEfficiencyPeriod] = useState('Weekly'); // 'Weekly' | 'Monthly' | 'All-Time'
+  const [efficiencyPeriod, setEfficiencyPeriod] = useState('Weekly');
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState('');
@@ -56,26 +68,51 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
     setTimeout(() => setToastMessage(''), 3000);
   };
 
+  // Device File Upload Handler
+  const handleDeviceImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        showToast('Please select a valid image file (PNG, JPG, WebP).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Url = event.target?.result;
+        if (base64Url) {
+          onUpdateUser({ avatar: base64Url });
+          showToast('Device profile picture uploaded & saved successfully!');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSaveAccount = (e) => {
     e.preventDefault();
     onUpdateUser({ username, email, role });
     setIsSaved(true);
-    showToast('Account settings updated successfully!');
+    showToast('Account details saved to your profile!');
     setTimeout(() => setIsSaved(false), 2500);
   };
 
   const handleSelectAvatar = (url) => {
     onUpdateUser({ avatar: url });
     setIsAvatarPickerOpen(false);
-    showToast('Profile avatar updated!');
-  };
-
-  const handleInsightClick = (insight) => {
-    setSelectedInsight(insight);
+    showToast('Profile picture updated!');
   };
 
   return (
     <div className="dashboard-container">
+      {/* Hidden File Input for Device Image Selection */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        accept="image/*" 
+        style={{ display: 'none' }} 
+        onChange={handleDeviceImageUpload} 
+      />
+
       {/* Toast Notification Popup */}
       {toastMessage && (
         <div className="dashboard-toast">
@@ -87,9 +124,13 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
       {/* Top Header Row */}
       <div className="dashboard-top-bar">
         <div className="user-profile-header">
-          <div className="avatar-wrapper" onClick={() => setIsAvatarPickerOpen(true)} title="Click to Change Avatar">
+          <div 
+            className="avatar-wrapper" 
+            onClick={() => fileInputRef.current?.click()} 
+            title="Click to Upload Profile Picture from Device"
+          >
             <img src={user.avatar} alt={username} className="profile-img" />
-            <button className="avatar-edit-badge" title="Change Avatar">
+            <button className="avatar-edit-badge" title="Upload Device Image">
               <Camera size={12} />
             </button>
           </div>
@@ -110,6 +151,15 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
         </div>
 
         <div className="dashboard-top-actions">
+          <button 
+            className="btn-secondary" 
+            onClick={() => fileInputRef.current?.click()}
+            title="Upload Profile Picture from Computer Device"
+          >
+            <Upload size={14} />
+            <span>UPLOAD PICTURE</span>
+          </button>
+
           <button 
             className="btn-secondary" 
             onClick={() => setIsEditProfileOpen(true)}
@@ -136,7 +186,7 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
 
       {/* Grid Row 1: Interactive Statistics Cards */}
       <div className="stats-cards-grid">
-        {/* Stat Card 1: Total Optimizations (Clickable to view history log) */}
+        {/* Stat Card 1: Total Optimizations */}
         <div 
           className="stat-card clickable"
           onClick={() => setIsHistoryLogOpen(true)}
@@ -158,7 +208,7 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
           </div>
         </div>
 
-        {/* Stat Card 2: Efficiency Gain (Clickable to toggle periods) */}
+        {/* Stat Card 2: Efficiency Gain */}
         <div 
           className="stat-card clickable"
           onClick={() => {
@@ -322,7 +372,7 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
               <div 
                 key={item.id} 
                 className="insight-item clickable"
-                onClick={() => handleInsightClick(item)}
+                onClick={() => setSelectedInsight(item)}
                 title="Click to view detail breakdown"
               >
                 <div className="insight-header">
@@ -382,13 +432,15 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
             </div>
 
             <div className="form-group">
-              <label>Avatar URL</label>
-              <input 
-                type="text" 
-                value={user.avatar} 
-                onChange={(e) => onUpdateUser({ avatar: e.target.value })} 
-                className="form-input" 
-              />
+              <label>Device Image Upload</label>
+              <button 
+                type="button" 
+                className="btn-secondary full-width"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={14} />
+                <span>Select Image from Computer</span>
+              </button>
             </div>
 
             <div className="modal-footer-row">
@@ -433,6 +485,20 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
                 />
               ))}
             </div>
+
+            <div className="modal-footer-row">
+              <button 
+                type="button" 
+                className="btn-secondary full-width"
+                onClick={() => {
+                  setIsAvatarPickerOpen(false);
+                  fileInputRef.current?.click();
+                }}
+              >
+                <Upload size={14} />
+                <span>Upload Custom Image from Device</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -455,15 +521,15 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
               <div className="report-summary-bar">
                 <div className="summary-item">
                   <span className="lbl">Scanned Files</span>
-                  <span className="val">4 Files</span>
+                  <span className="val">5 Files</span>
                 </div>
                 <div className="summary-item">
                   <span className="lbl">Total Issues</span>
-                  <span className="val amber">67 Bottlenecks</span>
+                  <span className="val amber">85 Bottlenecks</span>
                 </div>
                 <div className="summary-item">
                   <span className="lbl">Avg Speedup</span>
-                  <span className="val green">+42% Speedup</span>
+                  <span className="val green">+52% Speedup</span>
                 </div>
               </div>
 
@@ -478,13 +544,25 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
                 <li>
                   <span className="tag high">High</span>
                   <div>
-                    <strong>algo.py:</strong> Quadratic $O(n^2)$ nested loop duplicate detection. Recommendation: Switch to $O(n)$ Hash Set.
+                    <strong>algo.py:</strong> Quadratic $O(n^2)$ duplicate search & $O(2^n)$ Fibonacci. Recommendation: Switch to $O(n)$ Hash Set + LRU Memoization.
                   </div>
                 </li>
                 <li>
                   <span className="tag medium">Medium</span>
                   <div>
-                    <strong>quick_sort.cpp:</strong> Repeated dynamic vector reallocations. Recommendation: Call `vector.reserve()`.
+                    <strong>quick_sort.cpp:</strong> Repeated vector heap reallocations. Recommendation: Call `vector.reserve()`.
+                  </div>
+                </li>
+                <li>
+                  <span className="tag high">High</span>
+                  <div>
+                    <strong>MatrixAlgo.java:</strong> $O(n^3)$ cubic matrix multiplication & String loop concatenation. Recommendation: Reorder loop indexing & use `StringBuilder`.
+                  </div>
+                </li>
+                <li>
+                  <span className="tag high">High</span>
+                  <div>
+                    <strong>data_processor.rs:</strong> Clone-heavy vector iterations. Recommendation: Use zero-copy `into_iter()` pipeline.
                   </div>
                 </li>
               </ul>
@@ -493,9 +571,7 @@ export default function UserDashboard({ user, onUpdateUser, onOpenEditor, onLogo
             <div className="modal-footer-row space-between">
               <button 
                 className="btn-secondary"
-                onClick={() => {
-                  showToast('Exporting PDF audit report...');
-                }}
+                onClick={() => showToast('Exporting PDF audit report...')}
               >
                 <Download size={14} />
                 <span>Export PDF</span>
